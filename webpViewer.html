@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>webpViewer</title>
+  <script async>
+    let _root = sessionStorage.getItem('root')
+    let _images, num=0, pos=0
+    let imgElem
+
+    const queryRoot = async () => {
+      const resp = await fetch('/status')
+      const respJson = await resp.json()
+      _root = respJson['root']
+      // console.log(respJson)
+      sessionStorage.setItem('root', _root)
+    }
+    queryRoot()
+
+    const showImage = (shift) => {
+      pos += shift
+      pos = Math.min(Math.max(0, pos), num-1)
+      // console.log(imgElem)
+      imgElem.type = _images[pos].type
+      imgElem.src = `/static/${_images[pos].webkitRelativePath}`
+    }
+
+    const setImageHeight = (shift) => {
+      if (shift === undefined) {
+        imgElem.height = window.innerHeight
+        return
+      }
+      imgElem.height += shift
+    }
+
+    const selectFolder = e => {
+      //文件夹里面所有文件        
+      _images = e.target.files
+      //文件夹名称        
+      // const relativePath = _images[0].webkitRelativePath
+      // const folderName = relativePath.split("/")[0]
+      num = _images.length
+      pos=0
+      showImage(0)
+    }
+
+    const handleKeyEvent = e => {
+      switch (e.key) {
+        case 'ArrowLeft':
+          showImage(-1)
+          break;
+        case 'ArrowRight':
+          showImage(1)
+          break;
+        case '+':
+          setImageHeight(200)
+          break;
+        case '-':
+          setImageHeight(-200)
+          break;
+      }
+      console.log(e)
+    }
+
+    // 模拟 load 事件
+    document.onreadystatechange = function () {
+      if(document.readyState === "complete") {
+        const info = document.querySelector('.rootInfo')
+        info.innerText = _root
+        imgElem = document.querySelector('img')
+        setImageHeight()
+      }
+    }
+  </script>
+
+  <style>
+    main {
+      margin: 0 auto;
+      width: 90%;
+    }
+  </style>
+</head>
+
+<body onkeydown="handleKeyEvent(event)">
+  <header>
+    <p class="rootInfo"></p>
+    <input type=file id="pathInput" onchange="selectFolder(event)" webkitdirectory>
+  </header>
+  <main>
+    <section>
+      <button onclick="showImage(-1)">上一个</button>
+      <button onclick="showImage(1)">下一个</button>
+    </section>
+    <img type="image/webp" src="" alt="请选择正确的目录">
+  </main>
+  <footer></footer>
+</body>
+
+</html>
