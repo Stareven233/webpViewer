@@ -1,6 +1,10 @@
-const express = require('express')
+import express from 'express'
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+
 const app = express()
 const port = 4412
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 // 前两个是node位置跟本文件位置
 const argsList = process.argv.slice(2)
@@ -12,6 +16,7 @@ for (const arg of argsList) {
     break
   }
 }
+
 if (!root) {
   console.error('error! please set static path by flag: "path=?"')
   process.exit(-1)

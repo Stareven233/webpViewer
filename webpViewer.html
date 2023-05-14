@@ -39,6 +39,7 @@
     const selectFolder = e => {
       //文件夹里面所有文件        
       _images = e.target.files
+      console.log('e :>> ', e);
       //文件夹名称        
       // const relativePath = _images[0].webkitRelativePath
       // const folderName = relativePath.split("/")[0]
@@ -62,7 +63,7 @@
           setImageHeight(-200)
           break;
       }
-      console.log(e)
+      // console.log(e)
     }
 
     // 模拟 load 事件
@@ -87,7 +88,7 @@
 <body onkeydown="handleKeyEvent(event)">
   <header>
     <p class="rootInfo"></p>
-    <input type=file id="pathInput" onchange="selectFolder(event)" webkitdirectory>
+    <input type=file id="pathInput" onchange="selectFolder(event)" webkitdirectory directory multiple>
   </header>
   <main>
     <section>
