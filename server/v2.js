@@ -1,17 +1,47 @@
 import express from 'express'
 import path from 'node:path'
+import * as fs from 'node:fs/promises'
 
 const app = express()
-const mountPoint = '/app'
 const port = 4412
-// const appRoot = 'D:/code/Projects/webpViewer/dist'
+const mountPoint = '/'
 const appRoot = path.join(path.resolve('..'), 'dist')
-
+let pwd = 'C:/'
 
 app.get(mountPoint, (req, res) => {
   res.sendFile(path.join(appRoot, 'index.html'))
 })
 app.use(mountPoint, express.static(appRoot))
+
+app.get('/list', async (req, res) => {
+  // console.log('req.query :>> ', req.query)
+  if (req.query.dir) {
+    pwd = req.query.dir
+  }
+  try {
+    const files = await fs.readdir(pwd, {withFileTypes: true})
+    const file_arr = []
+    for (const file of files) {
+      file_arr.push({
+        name: file.name,
+        isFIle: file.isFile(),
+        isDirectory: file.isDirectory(),
+        // isSymbolicLink: file.isSymbolicLink(),
+      })
+    }
+    res.send(file_arr)
+  } catch (err) {
+    res.status(500).send(err)
+  }
+})
+
+app.get('/static/:file', async (req, res) => {
+  const fileName = req.params.file
+  if (fileName === null) {
+    return
+  }
+  res.sendFile(fileName, {root: pwd, dotfiles: 'allow'})
+})
 
 app.listen(port, () => {
   console.log(`app run at http://localhost:${port}${mountPoint}`)
