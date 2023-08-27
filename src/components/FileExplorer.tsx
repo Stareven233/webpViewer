@@ -1,15 +1,17 @@
 import type { Component } from 'solid-js'
-import { createSignal, createResource, Show, For } from "solid-js"
+import { createResource, For } from "solid-js"
 import { Dynamic } from "solid-js/web"
+import neoStore from "../store"
+import { listDir } from '../api'
 
 class NoeFile {
   public name: string
-  public isFIle: boolean
+  public isFile: boolean
   public isDirectory: boolean
 
-  constructor(name:string, isFIle:boolean, isDirectory:boolean) {
+  constructor(name:string, isFile:boolean, isDirectory:boolean) {
     this.name = name
-    this.isFIle = isFIle
+    this.isFile = isFile
     this.isDirectory = isDirectory
   }
 
@@ -39,7 +41,7 @@ class NoeFile {
 
 const fileTypes = (obj: NoeFile) => {
   let comp: any
-  if (obj.isFIle) {
+  if (obj.isFile) {
     comp = <span class='text-green-500 mr-1 select-none'>F</span>
   } else if (obj.isDirectory) {
     comp = <span class='text-orange-400 mr-1 select-none'>D</span>
@@ -50,33 +52,33 @@ const fileTypes = (obj: NoeFile) => {
 }
 
 const Comp: Component = () => {
-  const [currentDir, setCurrentDir] = createSignal('C:/')
+  const { store, setStore } = neoStore
   const parentDir = new NoeFile('..', false, true)
-  const listDir = async (dir: string) => {
+  const resolveDir = async (dir: string) => {
     // console.log('dir :>> ', dir)
-    let res = await (await fetch(`$api/list?dir=${dir}`)).json()
+    let res = await listDir(dir)
     // console.log('object :>> ', res[1].name, res[1].isDirectory, Object.keys(res[1]))
-    res = res.map((item: any) => new NoeFile(item.name, item.isFIle, item.isDirectory))
+    res = res.map((item: any) => new NoeFile(item.name, item.isFile, item.isDirectory))
     res.unshift(parentDir)
     return res
   }
-  const [files, fileAction] = createResource(currentDir, listDir)
+  const [files, fileAction] = createResource(() => store.currentDir, resolveDir)
   const clickItem = (obj: NoeFile) => {
     if (obj.isDirectory) {
-      setCurrentDir(NoeFile.path_join(currentDir(), obj.name))
-    } else if (obj.isFIle) {
-      // open file
+      setStore("currentDir", dir => NoeFile.path_join(dir, obj.name))
+    } else if (obj.isFile) {
+      setStore("currentItem", () => obj.name)
     }
   }
 
   return (
-    <aside class='flex flex-col border mx-2 my-2 px-2 w-[20%] min-h-screen'>
+    <aside class='flex flex-col border mx-2 my-2 px-2 w-[20%] min-h-screen overflow-x-hidden'>
       <section class='flex flex-row'>
         <input
           //  flex-grow 属性决定了子容器要占用父容器多少剩余空间
           class='flex-grow border-b outline-none w-[5%] mr-2'
-          value={currentDir()}
-          onChange={e => setCurrentDir(e.currentTarget.value)}
+          value={store.currentDir}
+          onChange={e => setStore("currentDir", dir => e.currentTarget.value)}
         />
         <button class='hover:text-green-700' onClick={e => clickItem(parentDir)}>↑</button>
         <button class='hover:text-green-700' onClick={fileAction.refetch}>〇</button>

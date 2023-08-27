@@ -1,3 +1,4 @@
+// https://nodejs.cn/express/4x/api/
 import express from 'express'
 import path from 'node:path'
 import * as fs from 'node:fs/promises'
@@ -24,7 +25,7 @@ app.get('/list', async (req, res) => {
     for (const file of files) {
       file_arr.push({
         name: file.name,
-        isFIle: file.isFile(),
+        isFile: file.isFile(),
         isDirectory: file.isDirectory(),
         // isSymbolicLink: file.isSymbolicLink(),
       })
@@ -35,7 +36,7 @@ app.get('/list', async (req, res) => {
   }
 })
 
-app.get('/static/:file', async (req, res) => {
+app.get('/pwd/:file', async (req, res) => {
   const fileName = req.params.file
   if (fileName === null) {
     return
