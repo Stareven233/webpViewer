@@ -3,6 +3,7 @@ import { createResource, For } from "solid-js"
 import { Dynamic } from "solid-js/web"
 import neoStore from "../store"
 import { listDir } from '../api'
+import * as MsgBox from './MessageBox'
 
 class NoeFile {
   public name: string
@@ -61,7 +62,7 @@ const Comp: Component = () => {
     let res = await listDir(dir)
     if ('errno' in res) {
       console.error('error:', res)
-      alert('dir not exist')
+      MsgBox.popup('error', JSON.stringify(res), MsgBox.Type.error)
       return
     }
     res = res.map((item: any) => new NoeFile(item.name, item.isFile, item.isDirectory))
@@ -87,7 +88,7 @@ const Comp: Component = () => {
     let pos = 0
     const fileNum = files().length
     const direction = step > 0? 1: -1
-    if(lastTarget) {
+    if(lastTarget && lastTarget.firstElementChild?.textContent==='F') {
       pos = parseInt((lastTarget as HTMLElement).dataset.idx) + step
     }
     pos = Math.max(0, pos) % fileNum
@@ -122,7 +123,7 @@ const Comp: Component = () => {
   }
 
   return (
-    <aside id='explorer' class='flex flex-col border mx-2 my-2 px-2 w-[20%] overflow-hidden' tabindex={-1} onkeydown={e => handleKeyEvent(e)}>
+    <aside id='explorer' class='flex flex-col border mx-2 my-2 px-2 w-[20%] overflow-hidden' tabindex={0} onkeydown={e => handleKeyEvent(e)}>
       <section class='flex flex-row'>
         <input
           // flex-grow 属性决定了子容器要占用父容器多少剩余空间
@@ -135,7 +136,7 @@ const Comp: Component = () => {
       </section>
       <section class='file-list overflow-y-scroll'>
         <For each={files()}>{(file, i) =>
-          <p data-idx={i()} class="hover:cursor-pointer mb-0.8" onClick={e => clickItem(e.target, file)}>
+          <p data-idx={i()} class="hover:cursor-pointer mb-0.8" onClick={e => clickItem(e.target, file)} title={file.name}>
             <Dynamic component={fileTypes(file)} />
             {file.name}
           </p>

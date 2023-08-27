@@ -18,7 +18,7 @@ const Comp: Component = () => {
   const PanelFallback = <p class='text-2xl'>暂不支持的类型: {dataType()}</p>
 
   return (
-    <section class='max-w-[80%] flex flex-col h-full flex-grow text-center'>
+    <main class='max-w-[80%] flex flex-col h-full flex-grow text-center'>
       <p class="text-base h-[3%] text-green-700 overflow-x-hidden whitespace-nowrap">
         <a href={blobURL()} download={ store.currentItem }>"{ store.currentItem }"</a>
         <span class='ml-2'>{blob()?.type}</span>
@@ -31,7 +31,7 @@ const Comp: Component = () => {
         </Show>
         {/* 调用 URL.revokeObjectURL(url) 方法，从内部映射中删除引用，从而允许删除 Blob（如果没有其他引用），并释放内存 */}
       </div>
-    </section>
+    </main>
   )
 }
 
