@@ -5,6 +5,7 @@ import { render } from 'solid-js/web';
 import App from './App';
 
 const root = document.getElementById('root');
+root.classList.add('h-full');
 
 if (import.meta.env.DEV && !(root instanceof HTMLElement)) {
   throw new Error(

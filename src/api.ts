@@ -1,4 +1,4 @@
-export const listDir = async (dir: string) => (await fetch(`$api/list?dir=${dir}`)).json();
+export const listDir = async (dir: string) => (await fetch(`$api/list?dir=${encodeURIComponent(dir)}`)).json();
 
 // export const getFile = async (path: string) => await fetch(`$api/pwd/${path}`)
 export const getFile = async (filename: string) => {
@@ -10,6 +10,6 @@ export const getFile = async (filename: string) => {
     const url = `$api/pwd/${encodeURIComponent(filename)}`
     blob = await (await fetch(url)).blob();
   }
-  console.log(filename, blob.type)
+  // console.log(filename, blob.type)
   return blob
 };

@@ -4,7 +4,7 @@ import DataPanel from './components/DataPanel'
 
 const App: Component = () => {
   return (
-    <main class='flex flex-row mt-2 selection:bg-orange-300'>
+    <main class='flex flex-row h-full mt-2 selection:bg-orange-300'>
       <FileExplorer></FileExplorer>
       <DataPanel></DataPanel>
     </main>

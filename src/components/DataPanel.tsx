@@ -11,24 +11,20 @@ const Comp: Component = () => {
   const blobURL = createMemo(() => URL.createObjectURL(new Blob([blob()])))
   const dataType = createMemo(() => blob()?.type.split('/')[0])
 
-  const ImagePanel = () => <div>
-    <img class="object-contain object-center mx-auto" src={blobURL()} alt={store.currentItem} />
-  </div>
+  const ImagePanel = () => <img class="object-contain object-center mx-auto max-h-full" src={blobURL()} alt={store.currentItem} />
   const options = {
     image: ImagePanel,
   }
-  const PanelFallback = <div>
-    <p>暂不支持的类型: {dataType()}</p>
-  </div>
+  const PanelFallback = <p class='text-2xl'>暂不支持的类型: {dataType()}</p>
 
   return (
-    <section class='flex-grow text-center'>
-      <div class="text-xl h-1/10 text-green-700">
+    <section class='max-w-[80%] flex flex-col h-full flex-grow text-center'>
+      <p class="text-base h-[3%] text-green-700 overflow-x-hidden whitespace-nowrap">
         <a href={blobURL()} download={ store.currentItem }>"{ store.currentItem }"</a>
         <span class='ml-2'>{blob()?.type}</span>
-      </div>
+      </p>
 
-      <div class="panel h-9/10">
+      <div class="h-[97%] flex flex-col justify-center">
         {/* 套一层show，防止blob未解析时报错 */}
         <Show when={blob() && dataType() in options} fallback={PanelFallback}>
           <Dynamic component={options[dataType()]} />

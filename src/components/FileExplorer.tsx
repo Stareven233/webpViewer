@@ -28,7 +28,7 @@ class NoeFile {
         if (!!last) {
           new_paths.push(...last.split('/').slice(0, -1))
         }
-      } else if (p.length > 1 && /^[^\\\/:*?"<>|]+$/.test(p)) {
+      } else if (/^[^\\\/:*?"<>|]+$/.test(p)) {
         new_paths.push(p)
       }
     })
@@ -54,16 +54,28 @@ const fileTypes = (obj: NoeFile) => {
 const Comp: Component = () => {
   const { store, setStore } = neoStore
   const parentDir = new NoeFile('..', false, true)
+  let lastTarget: EventTarget&Element
+
   const resolveDir = async (dir: string) => {
     // console.log('dir :>> ', dir)
     let res = await listDir(dir)
-    // console.log('object :>> ', res[1].name, res[1].isDirectory, Object.keys(res[1]))
+    if ('errno' in res) {
+      console.error('error:', res)
+      alert('dir not exist')
+      return
+    }
     res = res.map((item: any) => new NoeFile(item.name, item.isFile, item.isDirectory))
     res.unshift(parentDir)
     return res
   }
   const [files, fileAction] = createResource(() => store.currentDir, resolveDir)
-  const clickItem = (obj: NoeFile) => {
+
+  const clickItem = (target:EventTarget&Element, obj: NoeFile) => {
+    if (lastTarget) {
+      lastTarget.classList.remove('bg-green-200')
+    }
+    target.classList.add('bg-green-200')
+    lastTarget = target
     if (obj.isDirectory) {
       setStore("currentDir", dir => NoeFile.path_join(dir, obj.name))
     } else if (obj.isFile) {
@@ -71,23 +83,61 @@ const Comp: Component = () => {
     }
   }
 
+  const seekFile = (step: number) => {
+    let pos = 0
+    const fileNum = files().length
+    const direction = step > 0? 1: -1
+    if(lastTarget) {
+      pos = parseInt((lastTarget as HTMLElement).dataset.idx) + step
+    }
+    pos = Math.max(0, pos) % fileNum
+    const lastPos = pos
+  
+    while (!files()[pos].isFile) {
+      pos = (pos + direction + fileNum) % fileNum
+      // 避免不存在文件的情况
+      if (pos === lastPos) {
+        return
+      }
+    }
+    clickItem(
+      document.querySelector(`#explorer .file-list p[data-idx="${pos}"]`),
+      files()[pos]
+    )
+  }
+  const handleKeyEvent = (e:KeyboardEvent) => {
+    switch (e.key) {
+      case 'ArrowLeft':
+        seekFile(-1)
+        break;
+      case 'ArrowRight':
+        seekFile(1)
+        break;
+      case '+':
+        break;
+      case '-':
+        break;
+    }
+    // console.log(e)
+  }
+
   return (
-    <aside class='flex flex-col border mx-2 my-2 px-2 w-[20%] min-h-screen overflow-x-hidden'>
+    <aside id='explorer' class='flex flex-col border mx-2 my-2 px-2 w-[20%] overflow-hidden' tabindex={-1} onkeydown={e => handleKeyEvent(e)}>
       <section class='flex flex-row'>
         <input
-          //  flex-grow 属性决定了子容器要占用父容器多少剩余空间
+          // flex-grow 属性决定了子容器要占用父容器多少剩余空间
           class='flex-grow border-b outline-none w-[5%] mr-2'
           value={store.currentDir}
           onChange={e => setStore("currentDir", dir => e.currentTarget.value)}
         />
-        <button class='hover:text-green-700' onClick={e => clickItem(parentDir)}>↑</button>
+        <button class='hover:text-green-700' onClick={e => clickItem(e.target, parentDir)}>↑</button>
         <button class='hover:text-green-700' onClick={fileAction.refetch}>〇</button>
       </section>
-      <section>
+      <section class='file-list overflow-y-scroll'>
         <For each={files()}>{(file, i) =>
-          <p>
+          <p data-idx={i()} class="hover:cursor-pointer mb-0.8" onClick={e => clickItem(e.target, file)}>
             <Dynamic component={fileTypes(file)} />
-            <span class='hover:cursor-pointer' onClick={e => clickItem(file)}>{file.name}</span>
+            {file.name}
           </p>
         }</For>
       </section>
