@@ -3,9 +3,11 @@ import FileExplorer from './components/FileExplorer'
 import DataPanel from './components/DataPanel'
 import MessageBox from './components/MessageBox'
 
-// 加一个消息组件的component
 // 图片放大
 // explorer隐藏
+// 图片翻页
+// hash记录浏览位置
+// 适配手机
 
 const App: Component = () => {
   return (

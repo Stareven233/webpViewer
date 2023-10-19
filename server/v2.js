@@ -6,7 +6,7 @@ import * as fs from 'node:fs/promises'
 const app = express()
 const port = 4412
 const mountPoint = '/'
-const appRoot = path.join(path.resolve('..'), 'dist')
+const appRoot = path.join(path.resolve('.'), 'dist')
 let pwd = 'C:/'
 
 app.get(mountPoint, (req, res) => {
