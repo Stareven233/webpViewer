@@ -123,16 +123,16 @@ const Comp: Component = () => {
   }
 
   return (
-    <aside id='explorer' class='flex flex-col border mx-2 my-2 px-2 w-[20%] overflow-hidden' tabindex={0} onkeydown={e => handleKeyEvent(e)}>
-      <section class='flex flex-row'>
+    <aside id='explorer' class='flex flex-col border w-[100%] mx-2 my-2 px-2 overflow-hidden' tabindex={0} onkeydown={e => handleKeyEvent(e)}>
+      <section class='flex flex-row text-lg'>
         <input
           // flex-grow 属性决定了子容器要占用父容器多少剩余空间
           class='flex-grow border-b outline-none w-[5%] mr-2'
           value={store.currentDir}
           onChange={e => setStore("currentDir", dir => e.currentTarget.value)}
         />
-        <button class='hover:text-green-700' onClick={e => clickItem(e.target, parentDir)}>↑</button>
-        <button class='hover:text-green-700' onClick={fileAction.refetch}>〇</button>
+        <button class='hover:text-green-700 px-2' onClick={e => clickItem(e.target, parentDir)}>↑</button>
+        <button class='hover:text-green-700 px-2' onClick={fileAction.refetch}>〇</button>
       </section>
       <section class='file-list overflow-y-scroll'>
         <For each={files()}>{(file, i) =>

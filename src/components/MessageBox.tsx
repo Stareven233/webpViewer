@@ -30,11 +30,12 @@ export const popup = (title:string, content:string, type:Type) => {
   setTimeout(() => {setHidden(true)}, 5000)
 }
 
-const Comp: Component = () => {
+export const Comp: Component = () => {
+  // https://www.tailwindcss.cn/docs/hover-focus-and-other-states#quick-reference
   return (
     <div 
       id='msg-box' data-type="-1"
-      class="fixed top-[40%] left-[40%] w-[20%] h-[20%] text-center p-4 border-1 z-10 border-gray-200 rounded text-gray-700 shadow-lg"
+      class="fixed min-[300px]:top-[20%] top-[40%] min-[300px]:left-[30%] lg:left-[40%] lg:w-[20%] lg:h-[20%] text-center p-4 border-1 z-10 border-gray-200 rounded text-gray-700 shadow-lg"
       classList={{hidden: hidden()}}
       >
       <header class="text-2xl font-semibold flex flex-row justify-end">
@@ -46,4 +47,4 @@ const Comp: Component = () => {
   )
 }
 
-export default Comp
+// export default Comp

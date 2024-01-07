@@ -5,6 +5,7 @@ import { Dynamic } from "solid-js/web"
 import neoStore from "../store"
 import { getFile } from '../api'
 
+
 const ImagePanel: Component<any> = props => {
   return <img class="object-contain object-center mx-auto max-h-full" src={props.url} alt={props.name} />
 }
@@ -17,7 +18,7 @@ const TextPanel: Component<any> = props => {
   )
 }
 
-const Comp: Component = () => {
+const Comp: Component = (props: any) => {
   const { store } = neoStore
   const [blob] = createResource(() => store.currentItem, getFile)
   const blobURL = createMemo(() => URL.createObjectURL(new Blob([blob()])))
@@ -31,7 +32,7 @@ const Comp: Component = () => {
   const PanelFallback = <p class='text-2xl'>暂不支持的类型: {dataType()}</p>
 
   return (
-    <main class='max-w-[80%] flex flex-col h-full flex-grow text-center'>
+    <main id='dataPanel' ref={props.ref} class='px-2 flex flex-col h-full flex-grow text-center'>
       <p class="text-base h-[3%] text-green-700 overflow-x-hidden whitespace-nowrap">
         <a href={blobURL()} download={ store.currentItem }>"{ store.currentItem }"</a>
         <span class='ml-2'>{blob()?.type}</span>

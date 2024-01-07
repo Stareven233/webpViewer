@@ -13,22 +13,22 @@ devDependencies:
     specifier: ^20.4.1
     version: 20.4.1
   autoprefixer:
-    specifier: ^10.4.13
+    specifier: ^10.4.14
     version: 10.4.14(postcss@8.4.23)
   postcss:
-    specifier: ^8.4.21
+    specifier: ^8.4.23
     version: 8.4.23
   tailwindcss:
-    specifier: ^3.2.4
+    specifier: ^3.3.2
     version: 3.3.2
   typescript:
     specifier: ^4.9.5
     version: 4.9.5
   vite:
-    specifier: ^4.1.1
+    specifier: ^4.3.6
     version: 4.3.6(@types/node@20.4.1)
   vite-plugin-solid:
-    specifier: ^2.5.0
+    specifier: ^2.7.0
     version: 2.7.0(solid-js@1.7.11)(vite@4.3.6)
 
 packages:
@@ -709,7 +709,7 @@ packages:
       postcss: ^8.1.0
     dependencies:
       browserslist: 4.21.5
-      caniuse-lite: 1.0.30001487
+      caniuse-lite: 1.0.30001574
       fraction.js: 4.2.0
       normalize-range: 0.1.2
       picocolors: 1.0.0
@@ -787,7 +787,7 @@ packages:
     engines: {node: ^6 || ^7 || ^8 || ^9 || ^10 || ^11 || ^12 || >=13.7}
     hasBin: true
     dependencies:
-      caniuse-lite: 1.0.30001487
+      caniuse-lite: 1.0.30001574
       electron-to-chromium: 1.4.394
       node-releases: 2.0.10
       update-browserslist-db: 1.0.11(browserslist@4.21.5)
@@ -810,8 +810,8 @@ packages:
     engines: {node: '>= 6'}
     dev: true
 
-  /caniuse-lite@1.0.30001487:
-    resolution: {integrity: sha512-83564Z3yWGqXsh2vaH/mhXfEM0wX+NlBCm1jYHOb97TrTWJEmPTccZgeLTPBUUb0PNVo+oomb7wkimZBIERClA==}
+  /caniuse-lite@1.0.30001574:
+    resolution: {integrity: sha512-BtYEK4r/iHt/txm81KBudCUcTy7t+s9emrIaHqjYurQ10x71zJ5VQ9x1dYPcz/b+pKSp4y/v1xSI67A+LzpNyg==}
     dev: true
 
   /chalk@2.4.2:
