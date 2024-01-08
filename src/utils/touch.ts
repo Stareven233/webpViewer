@@ -13,14 +13,26 @@ export default (function () {
     slideleft, slideright, slideup, slidedown, click, press
   }
   // const eventArr = ['eventslideleft', 'eventslideright', 'eventslideup', 'eventslidedown', 'eventclick', 'eventpress']
-  const eventArr = Object.keys(Type).filter(e => typeof e === 'string').map(e => `event${e}`)
+  const eventArr = Object.keys(Type).filter(e => typeof e === 'string').map(e => `event_${e}`)
+  const threshold = 150
 
   //touchstart事件，delta记录开始触摸位置
   function touchStart(event: TouchEvent) {
-    this.delta = {}
-    this.delta.x = event.touches[0].pageX
-    this.delta.y = event.touches[0].pageY
-    this.delta.time = new Date().getTime()
+    // this: 绑定的dom元素
+    this.touch_start = {
+      x: event.touches[0].pageX,
+      y: event.touches[0].pageY,
+      time: new Date().getTime(),
+    }
+    // 最大触点的数量
+    this.max_n_touch = event.touches.length
+    // console.log(window.innerHeight)
+  }
+
+  //touchstart事件，delta记录开始触摸位置
+  function touchMove(event: TouchEvent) {
+    this.max_n_touch = Math.max(this.max_n_touch, event.touches.length)
+    // console.log(window.innerHeight)
   }
 
   /**
@@ -31,70 +43,73 @@ export default (function () {
    * 这样就模拟的移动端几个常见的时间。
    * */
   function touchEnd(event: TouchEvent) {
-    const delta = this.delta
-    delete this.delta
-    const timegap = new Date().getTime() - delta.time
+    if (this.max_n_touch !== 1) {
+      // 暂不支持多指功能
+      return
+    }
+
+    const delta = this.touch_start
+    delta.time = new Date().getTime() - delta.time
     delta.x -= event.changedTouches[0].pageX
     delta.y -= event.changedTouches[0].pageY
     const abs_x = Math.abs(delta.x)
     const abs_y = Math.abs(delta.y)
 
-    if (abs_x < 5 && abs_y < 5) {
-      // 位移小，点击或长按
-      if (timegap < 1000 && 'eventclick' in this) {
-        this['eventclick'].map((fn: Function) => fn(event))
-      } else if ('eventpress' in this) {
-        this['eventpress'].map((fn: Function) => fn(event))
+    const gesture = (name: string) => {
+      const key = `event_${name}`
+      if (!Object.keys(this).includes(key)) {
+        console.log('no', name)
+        return
       }
-      return
+      console.log('has', name)
+      this[key].map((fn: Function) => fn(event))
     }
 
-    if (abs_x > abs_y) {
-      if (delta.x > 0 && 'eventslideleft' in this) {
-        this['eventslideleft'].map((fn: Function) => fn(event))
-      } else if ('eventslideright' in this) {
-        this['eventslideright'].map((fn: Function) => fn(event))
-      }
-    } else {
-      if (delta.y > 0 && 'eventslidedown' in this) {
-        this['eventslidedown'].map((fn: Function) => fn(event))
-      } else if ('eventslideup' in this) {
-        this['eventslideup'].map((fn: Function) => fn(event))
-      }
+    if (abs_x < 50 && abs_y < 50) {
+      // 位移小，点击或长按
+      delta.time < 500? gesture('click'): gesture('press')
+    } else if (abs_x > threshold && abs_y < threshold) {
+      delta.x > 0? gesture('slideleft'): gesture('slideright')
+    } else if (abs_y > threshold && abs_x < threshold) {
+      delta.y > 0? gesture('slidedown'): gesture('slideup')
     }
   }
 
   function bind(dom: HTMLElement, type: string, callback: Function) {
+    const key = `event_${type}`
     if (!dom) {
       console.error('dom is null or undefined')
     }
     const flag = eventArr.some(key => dom[key])
     if (!flag) {
       dom.addEventListener('touchstart', touchStart)
+      dom.addEventListener('touchmove', touchMove)
       dom.addEventListener('touchend', touchEnd)
     }
-    if (!dom['event' + type]) {
-      dom['event' + type] = []
+    if (!dom[key]) {
+      dom[key] = []
     }
-    dom['event' + type].push(callback)
+    dom[key].push(callback)
   }
 
   function remove(dom: HTMLElement, type: string, callback: Function) {
-    if (!dom['event' + type]) {
+    const key = `event_${type}`
+    if (!dom[key]) {
       return
     }
-    for (let i = 0; i < dom['event' + type].length; i++) {
-      if (dom['event' + type][i] === callback) {
-        dom['event' + type].splice(i--, 1)
+    for (let i = 0; i < dom[key].length; i++) {
+      if (dom[key][i] === callback) {
+        dom[key].splice(i--, 1)
       }
     }
-    if (!dom['event' + type] || dom['event' + type].length !== 0) {
+    if (!dom[key] || dom[key].length !== 0) {
       return
     }
-    delete dom['event' + type]
+    delete dom[key]
     const flag = eventArr.every(key => !dom[key])
     if (flag) {
       dom.removeEventListener('touchstart', touchStart)
+      dom.removeEventListener('touchmove', touchMove)
       dom.removeEventListener('touchend', touchEnd)
     }
   }

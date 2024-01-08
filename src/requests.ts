@@ -12,14 +12,14 @@ export const listDir = async (dir: string) => (await fetch(`${prefix}/list?dir=$
 // export const getFile = async (path: string) => await fetch(`${prefix}/pwd/${path}`)
 export const getBlob = async (file: NoeFile) => {
   if(!file.isFile && file.size<0) {
-    return new Blob(['[no file selected]'], {type: 'text/requestWarn'})
+    return new Blob(['[no file selected]'], {type: 'text/warn'})
   }
   
   let blob: Blob
   const size = formatBytes(file.size, 'MB')
   // 大于5MB就先不显示
   if (size.value > 5) {
-    blob = new Blob([`[too big file ${size.value}${size.scale}]`], {type: 'text/requestWarn'})
+    blob = new Blob([`[too big file ${size.value}${size.scale}]`], {type: 'text/warn'})
   } else {
     // encode以避免#%等符号出现在文件名导致的问题，express默认进行decode
     const url = `${prefix}/pwd/${encodeURIComponent(file.name)}`

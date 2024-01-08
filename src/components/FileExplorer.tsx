@@ -102,7 +102,7 @@ const Comp: Component<{hidden?: boolean}> = (props) => {
   })
 
   return (
-    <aside id='explorer' classList={{ hidden: props.hidden }} class='flex flex-col border w-[100%] mx-2 my-2 px-2 overflow-hidden' tabindex={0} onkeydown={e => handleKeyEvent(e)}>
+    <aside id='explorer' classList={{ hidden: props.hidden }} class='flex flex-col border w-[100%] mx-2 my-2 overflow-hidden' tabindex={0} onkeydown={e => handleKeyEvent(e)}>
       <section class='flex flex-row text-lg'>
         <input
           // flex-grow 属性决定了子容器要占用父容器多少剩余空间
@@ -115,7 +115,7 @@ const Comp: Component<{hidden?: boolean}> = (props) => {
       </section>
       <section class='file-list overflow-y-scroll'>
         <For each={files()}>{(file, i) =>
-          <p data-idx={i()} class='hover:cursor-pointer mb-0.8' onClick={e => clickItem(e.target, file)} title={file.name}>
+          <p data-idx={i()} class='hover:cursor-pointer mb-0.8 whitespace-nowrap' onClick={e => clickItem(e.target, file)} title={file.name}>
             <Dynamic component={fileTypes(file)} />
             {file.name}
           </p>

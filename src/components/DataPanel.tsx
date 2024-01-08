@@ -1,23 +1,22 @@
 // https://www.solidjs.com/tutorial/flow_show
 import type { Component } from 'solid-js'
-import { createMemo, createResource, Show } from 'solid-js'
+import { createMemo, createResource, Show, createSignal } from 'solid-js'
 import { onMount } from 'solid-js'
 import { Dynamic } from 'solid-js/web'
 
 import neoStore from '../store'
 import { getBlob } from '../requests'
-import { NoeFile, formatBytes } from '../utils/format'
-import * as MsgBox from './MessageBox'
+import { formatBytes } from '../utils/format'
 import TouchEvent from '../utils/touch'
 
 
 const ImagePanel: Component<any> = props => {
-  return <img class='object-contain object-center mx-auto max-h-full' src={props.url} alt={props.name} />
+  return <img class='object-contain object-center mx-auto max-h-[96vh]' src={props.url} alt={props.name} />
 }
 
 const TextPanel: Component<any> = props => {
   return (
-    <section class='max-h-full overflow-y-scroll text-left justify-normal py-3'>
+    <section class='max-h-[96vh] overflow-y-scroll text-left justify-normal'>
       <pre class='mx-auto break-words whitespace-pre-wrap'>{props.text}</pre>
     </section>
   )
@@ -42,14 +41,24 @@ const Comp: Component<{hidden?: boolean}> = (props) => {
     TouchEvent.bind(panel, 'slidedown', () => setStore('nextStep', () => 1))
   })
 
-  return (
-    <main id='dataPanel' ref={panel} classList={{ hidden: props.hidden }} class='px-2 flex flex-col h-full flex-grow text-center'>
-      <p class='text-base h-[3%] text-green-700 overflow-x-hidden whitespace-nowrap'>
-        <a href={blobURL()} download={ store.currentFile.name }>'{ store.currentFile.name } {Object.values(formatBytes(store.currentFile.size)).join('')}'</a>
-        <span class='ml-2'>{blob()?.type}</span>
-      </p>
+  const [hasHeader, setHasHeader] = createSignal(true)
+  const toggleHeader = (e: MouseEvent) => {
+    if (e.y > 60) {
+      return
+    }
+    setHasHeader(v => !v)
+  }
 
-      <div class='h-[97%] flex flex-col justify-center'>
+  return (
+    <main id='dataPanel' ref={panel} classList={{ hidden: props.hidden }} class='w-full h-full text-center' onClick={toggleHeader}>
+      <Show when={hasHeader()}>
+        <header class='text-sm text-grey-600 absolute top-0 py-2 px-1 w-full bg-rose-100' onClick={() => setHasHeader(false)}>
+          <a href={blobURL()} download={ store.currentFile.name }>{ store.currentFile.name }</a>
+          <p class='text-xs py-2'>{Object.values(formatBytes(store.currentFile.size)).join('')} {blob()?.type}</p>
+        </header>
+      </Show>
+
+      <div class='flex flex-col h-full justify-center overflow-y-scroll'>
         {/* 套一层show，防止blob未解析时报错 */}
         <Show when={blob() && dataType() in options} fallback={PanelFallback}>
           <Dynamic component={options[dataType()]} />

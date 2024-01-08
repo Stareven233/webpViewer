@@ -8,9 +8,8 @@ import DataPanel from './components/DataPanel'
 import * as MsgBox from './components/MessageBox'
 import TouchEvent from './utils/touch'
 
-// 图片放大
-// 图片翻页
 // hash记录浏览位置
+// 支持mhtml浏览
 
 const [viewID, setviewID] = createSignal(0)
 const mainComps = [FileExplorer, DataPanel]
