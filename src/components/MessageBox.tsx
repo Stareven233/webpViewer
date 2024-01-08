@@ -35,12 +35,12 @@ export const Comp: Component = () => {
   return (
     <div 
       id='msg-box' data-type="-1"
-      class="fixed min-[300px]:top-[20%] top-[40%] min-[300px]:left-[30%] lg:left-[40%] lg:w-[20%] lg:h-[20%] text-center p-4 border-1 z-10 border-gray-200 rounded text-gray-700 shadow-lg"
+      class="fixed min-[300px]:top-[20%] min-[300px]:left-[20%] min-[300px]:w-[60%] top-[40%] lg:left-[40%] lg:w-[20%] lg:h-[20%] text-center p-4 border-1 z-10 border-gray-200 rounded text-gray-700 shadow-lg"
       classList={{hidden: hidden()}}
       >
-      <header class="text-2xl font-semibold flex flex-row justify-end">
-        <span class="w-[90%] ml-[5%]">{title()}</span>
-        <span class="w-[5%] cursor-pointer" onClick={e => setHidden(true)}>X</span>
+      <header class="min-[300px]:text-lg lg:text-2xl font-semibold flex flex-row justify-end">
+        <span class="w-[90%] mx-auto">{title()}</span>
+        <span class="w-[5%] absolute cursor-pointer px-2 right-2 text-black" onClick={e => setHidden(true)}>x</span>
       </header>
       <section class="mt-4 break-all">{content()}</section>
     </div>

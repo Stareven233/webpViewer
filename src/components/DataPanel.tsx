@@ -1,44 +1,55 @@
 // https://www.solidjs.com/tutorial/flow_show
 import type { Component } from 'solid-js'
-import { createMemo, createResource, Show } from "solid-js"
-import { Dynamic } from "solid-js/web"
-import neoStore from "../store"
-import { getFile } from '../api'
+import { createMemo, createResource, Show } from 'solid-js'
+import { onMount } from 'solid-js'
+import { Dynamic } from 'solid-js/web'
+
+import neoStore from '../store'
+import { getBlob } from '../requests'
+import { NoeFile, formatBytes } from '../utils/format'
+import * as MsgBox from './MessageBox'
+import TouchEvent from '../utils/touch'
 
 
 const ImagePanel: Component<any> = props => {
-  return <img class="object-contain object-center mx-auto max-h-full" src={props.url} alt={props.name} />
+  return <img class='object-contain object-center mx-auto max-h-full' src={props.url} alt={props.name} />
 }
 
 const TextPanel: Component<any> = props => {
   return (
     <section class='max-h-full overflow-y-scroll text-left justify-normal py-3'>
-      <pre class="mx-auto break-words whitespace-pre-wrap">{props.text}</pre>
+      <pre class='mx-auto break-words whitespace-pre-wrap'>{props.text}</pre>
     </section>
   )
 }
 
-const Comp: Component = (props: any) => {
-  const { store } = neoStore
-  const [blob] = createResource(() => store.currentItem, getFile)
+const Comp: Component<{hidden?: boolean}> = (props) => {
+  const { store, setStore } = neoStore
+  const [blob] = createResource(() => store.currentFile, getBlob)
   const blobURL = createMemo(() => URL.createObjectURL(new Blob([blob()])))
   const [blobText] = createResource(() => blob(), async b => await b.text())
   const dataType = createMemo(() => blob()?.type.split('/')[0])
   const options = {
-    image: () => <ImagePanel url={blobURL()} name={store.currentItem} />,
+    image: () => <ImagePanel url={blobURL()} name={store.currentFile.name} />,
     text: () => <TextPanel text={blobText()} />,
     application: () => <TextPanel text={blobText()} />,
   }
   const PanelFallback = <p class='text-2xl'>暂不支持的类型: {dataType()}</p>
 
+  let panel: HTMLElement
+  onMount(() => {
+    TouchEvent.bind(panel, 'slideup', () => setStore('nextStep', () => -1))
+    TouchEvent.bind(panel, 'slidedown', () => setStore('nextStep', () => 1))
+  })
+
   return (
-    <main id='dataPanel' ref={props.ref} class='px-2 flex flex-col h-full flex-grow text-center'>
-      <p class="text-base h-[3%] text-green-700 overflow-x-hidden whitespace-nowrap">
-        <a href={blobURL()} download={ store.currentItem }>"{ store.currentItem }"</a>
+    <main id='dataPanel' ref={panel} classList={{ hidden: props.hidden }} class='px-2 flex flex-col h-full flex-grow text-center'>
+      <p class='text-base h-[3%] text-green-700 overflow-x-hidden whitespace-nowrap'>
+        <a href={blobURL()} download={ store.currentFile.name }>'{ store.currentFile.name } {Object.values(formatBytes(store.currentFile.size)).join('')}'</a>
         <span class='ml-2'>{blob()?.type}</span>
       </p>
 
-      <div class="h-[97%] flex flex-col justify-center">
+      <div class='h-[97%] flex flex-col justify-center'>
         {/* 套一层show，防止blob未解析时报错 */}
         <Show when={blob() && dataType() in options} fallback={PanelFallback}>
           <Dynamic component={options[dataType()]} />

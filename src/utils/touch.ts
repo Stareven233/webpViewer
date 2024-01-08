@@ -36,34 +36,29 @@ export default (function () {
     const timegap = new Date().getTime() - delta.time
     delta.x -= event.changedTouches[0].pageX
     delta.y -= event.changedTouches[0].pageY
+    const abs_x = Math.abs(delta.x)
+    const abs_y = Math.abs(delta.y)
 
-    if (Math.abs(delta.x) < 5 && Math.abs(delta.y) < 5) {
-      if (timegap < 1000) {
-        if (this['eventclick']) {
-          this['eventclick'].map((fn: Function) => fn(event))
-        }
-      } else {
-        if (this['eventpress']) {
-          this['eventpress'].map((fn: Function) => fn(event))
-        }
+    if (abs_x < 5 && abs_y < 5) {
+      // 位移小，点击或长按
+      if (timegap < 1000 && 'eventclick' in this) {
+        this['eventclick'].map((fn: Function) => fn(event))
+      } else if ('eventpress' in this) {
+        this['eventpress'].map((fn: Function) => fn(event))
       }
       return
     }
 
-    if (Math.abs(delta.x) > Math.abs(delta.y)) {
-      if (delta.x > 0) {
-        if (this['eventslideleft']) {
-          this['eventslideleft'].map((fn: Function) => fn(event))
-        }
-      } else {
+    if (abs_x > abs_y) {
+      if (delta.x > 0 && 'eventslideleft' in this) {
+        this['eventslideleft'].map((fn: Function) => fn(event))
+      } else if ('eventslideright' in this) {
         this['eventslideright'].map((fn: Function) => fn(event))
       }
     } else {
-      if (delta.y > 0) {
-        if (this['eventslidedown']) {
-          this['eventslidedown'].map((fn: Function) => fn(event))
-        }
-      } else {
+      if (delta.y > 0 && 'eventslidedown' in this) {
+        this['eventslidedown'].map((fn: Function) => fn(event))
+      } else if ('eventslideup' in this) {
         this['eventslideup'].map((fn: Function) => fn(event))
       }
     }

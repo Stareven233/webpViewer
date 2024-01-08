@@ -1,44 +1,12 @@
 import type { Component } from 'solid-js'
-import { createResource, For } from "solid-js"
-import { Dynamic } from "solid-js/web"
-import neoStore from "../store"
-import { listDir } from '../api'
+import { createResource, For } from 'solid-js'
+import { createEffect } from 'solid-js';
+import { Dynamic } from 'solid-js/web'
+import neoStore from '../store'
+import { listDir } from '../requests'
+import { NoeFile } from '../utils/format'
 import * as MsgBox from './MessageBox'
 
-class NoeFile {
-  public name: string
-  public isFile: boolean
-  public isDirectory: boolean
-
-  constructor(name:string, isFile:boolean, isDirectory:boolean) {
-    this.name = name
-    this.isFile = isFile
-    this.isDirectory = isDirectory
-  }
-
-  public static path_join(...paths: string[]) {
-    const old_paths = []
-    const new_paths = []
-    
-    paths.forEach(p => {
-      old_paths.push(...p.split('/'))
-    })
-    old_paths.slice(1, ).forEach(p => {
-      if (p === '..') {
-        const last = new_paths.pop()
-        if (!!last) {
-          new_paths.push(...last.split('/').slice(0, -1))
-        }
-      } else if (/^[^\\\/:*?"<>|]+$/.test(p)) {
-        new_paths.push(p)
-      }
-    })
-    if (/^[A-Za-z]:$/.test(old_paths[0])) {
-      new_paths.unshift(`${old_paths[0]}/`)
-    }
-    return new_paths.join('/')
-  }
-}
 
 const fileTypes = (obj: NoeFile) => {
   let comp: any
@@ -52,9 +20,9 @@ const fileTypes = (obj: NoeFile) => {
   return () => comp
 }
 
-const Comp: Component = () => {
+const Comp: Component<{hidden?: boolean}> = (props) => {
   const { store, setStore } = neoStore
-  const parentDir = new NoeFile('..', false, true)
+  const parentDir = new NoeFile('..', -1, false, true)
   let lastTarget: EventTarget&Element
 
   const resolveDir = async (dir: string) => {
@@ -65,7 +33,7 @@ const Comp: Component = () => {
       MsgBox.popup('error', JSON.stringify(res), MsgBox.Type.error)
       return
     }
-    res = res.map((item: any) => new NoeFile(item.name, item.isFile, item.isDirectory))
+    res = res.map((item: any) => new NoeFile(item.name, item.size, item.isFile, item.isDirectory))
     res.unshift(parentDir)
     return res
   }
@@ -78,9 +46,9 @@ const Comp: Component = () => {
     target.classList.add('bg-green-200')
     lastTarget = target
     if (obj.isDirectory) {
-      setStore("currentDir", dir => NoeFile.path_join(dir, obj.name))
+      setStore('currentDir', dir => NoeFile.path_join(dir, obj.name))
     } else if (obj.isFile) {
-      setStore("currentItem", () => obj.name)
+      setStore('currentFile', () => obj)
     }
   }
 
@@ -102,10 +70,11 @@ const Comp: Component = () => {
       }
     }
     clickItem(
-      document.querySelector(`#explorer .file-list p[data-idx="${pos}"]`),
+      document.querySelector(`#explorer .file-list p[data-idx='${pos}']`),
       files()[pos]
     )
   }
+
   const handleKeyEvent = (e:KeyboardEvent) => {
     switch (e.key) {
       case 'ArrowLeft':
@@ -122,21 +91,31 @@ const Comp: Component = () => {
     // console.log(e)
   }
 
+  createEffect(() => {
+    if (store.nextStep === 0) {
+      return
+    }
+    // console.log('next step', store.nextStep)
+    seekFile(store.nextStep)
+    // 每次结束后重置，方便后面再次触发
+    setStore('nextStep', s => 0)
+  })
+
   return (
-    <aside id='explorer' class='flex flex-col border w-[100%] mx-2 my-2 px-2 overflow-hidden' tabindex={0} onkeydown={e => handleKeyEvent(e)}>
+    <aside id='explorer' classList={{ hidden: props.hidden }} class='flex flex-col border w-[100%] mx-2 my-2 px-2 overflow-hidden' tabindex={0} onkeydown={e => handleKeyEvent(e)}>
       <section class='flex flex-row text-lg'>
         <input
           // flex-grow 属性决定了子容器要占用父容器多少剩余空间
           class='flex-grow border-b outline-none w-[5%] mr-2'
           value={store.currentDir}
-          onChange={e => setStore("currentDir", dir => e.currentTarget.value)}
+          onChange={e => setStore('currentDir', dir => e.currentTarget.value)}
         />
         <button class='hover:text-green-700 px-2' onClick={e => clickItem(e.target, parentDir)}>↑</button>
         <button class='hover:text-green-700 px-2' onClick={fileAction.refetch}>〇</button>
       </section>
       <section class='file-list overflow-y-scroll'>
         <For each={files()}>{(file, i) =>
-          <p data-idx={i()} class="hover:cursor-pointer mb-0.8" onClick={e => clickItem(e.target, file)} title={file.name}>
+          <p data-idx={i()} class='hover:cursor-pointer mb-0.8' onClick={e => clickItem(e.target, file)} title={file.name}>
             <Dynamic component={fileTypes(file)} />
             {file.name}
           </p>
