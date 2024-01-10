@@ -63,41 +63,46 @@ const clickItem = (target:EventTarget&Element, obj: NoeFile) => {
   history.pushState({}, '', `#${hash}`)
 }
 
-const handleHashChange = async (e: HashChangeEvent) => {
-  console.log(e)
-  if (!e.isTrusted || e.oldURL===e.newURL) {
-    return
-  }
-  const url = new URL(e.newURL)
-  // rsplit('/', 1) + 解码
-  const [dir, filename] = url.hash.slice(1, ).split(/\/(?=[^\/]+$)/, 2).map(decodeURIComponent)
-  setStore('currentDir', () => dir)
-  // TODO 单独请求该文件
-  const files = await resolveDir(dir)
-  let exist = false
-  for (const f of files) {
-    if (f.name !== filename) {
-      continue
-    }
-    exist = true
-    setStore('currentFile', () => f)
-  }
-  if (!exist) {
-    return
-  }
-  // 定位高亮
-  highlightElem(fileListElem.querySelector(`p[title='${filename}']`))
-}
-// window.onhashchange = handleHashChange
-window.addEventListener('hashchange', handleHashChange, false)
-
-
 const Comp: Component<{hidden?: boolean}> = (props) => {
-  const [files, fileAction] = createResource(() => store.currentDir, resolveDir)
+  let [files, fileAction] = createResource(() => store.currentDir, resolveDir)
+
+  const handleHashChange = (e: HashChangeEvent) => {
+    // console.log(e)
+    if (e.type!=='init' && !e.isTrusted || e.oldURL===e.newURL) {
+      return
+    }
+    const hash = new URL(e.newURL).hash
+    if (!hash) {
+      return
+    }
+    // rsplit('/', 1) + 解码
+    const [dir, filename] = hash.slice(1, ).split(/\/(?=[^\/]+$)/, 2).map(decodeURIComponent)
+    setStore('currentDir', () => dir)
+    // const files = await resolveDir(dir)
+    const intervalId = setInterval(() => {
+      if (files.loading) {
+        return
+      }
+      clearInterval(intervalId)
+      for (const f of files()) {
+        if (f.name !== filename) {
+          continue
+        }
+        setStore('currentFile', () => f)
+      }
+      // 定位高亮
+      highlightElem(fileListElem.querySelector(`p[title='${filename}']`))
+    }, 300)
+  }
+  // window.onhashchange = handleHashChange
+  window.addEventListener('hashchange', handleHashChange, false)
+  handleHashChange(new HashChangeEvent('init', { newURL: window.location.href }))
+
 
   const seekFile = (step: number) => {
     let pos = 0
-    const fileNum = files().length
+    const fileList = files()
+    const fileNum = fileList.length
     const direction = step > 0? 1: -1
     if(lastTarget && lastTarget.firstElementChild?.textContent==='F') {
       pos = parseInt((lastTarget as HTMLElement).dataset.idx) + step
@@ -105,7 +110,8 @@ const Comp: Component<{hidden?: boolean}> = (props) => {
     pos = Math.max(0, pos) % fileNum
     const lastPos = pos
   
-    while (!files()[pos].isFile) {
+    // 跳过目录，只显示文件
+    while (!fileList[pos].isFile) {
       pos = (pos + direction + fileNum) % fileNum
       // 避免不存在文件的情况
       if (pos === lastPos) {
@@ -115,10 +121,10 @@ const Comp: Component<{hidden?: boolean}> = (props) => {
     clickItem(
       // document.querySelector(`#explorer .file-list p[data-idx='${pos}']`),
       fileListElem.querySelector(`p[data-idx='${pos}']`),
-      files()[pos]
+      fileList[pos]
     )
   }
-    
+
   // createResource 不能放在外层，导致seekFile无法暴露，只能用store
   createEffect(() => {
     if (store.nextStep === 0) {
@@ -131,6 +137,9 @@ const Comp: Component<{hidden?: boolean}> = (props) => {
   })
 
   const inputChange = (e: any) => {
+    if (store.currentDir === e.currentTarget.value) {
+      return
+    }
     setStore('currentDir', dir => e.currentTarget.value)
     history.pushState({}, '', `#${store.currentDir}`)
   }

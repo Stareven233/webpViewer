@@ -43,6 +43,10 @@ export class FileSize {
     this.value = value
     this.scale = scale
   }
+
+  public show() {
+    return `${this.value}${this.scale}`
+  }
 }
 
 export function formatBytes(size:number, scale='', decimals=2) {

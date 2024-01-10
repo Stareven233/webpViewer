@@ -8,7 +8,9 @@ import * as MsgBox from './components/MessageBox'
 import TouchEvent from './utils/touch'
 import neoStore from './store'
 
-// 预加载/缓存
+// 预加载/缓存(blob)
+// 固定文件url
+// 优化blob读取
 // 文件上传
 // 支持mhtml浏览
 
