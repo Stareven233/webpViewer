@@ -9,7 +9,6 @@ import TouchEvent from './utils/touch'
 import neoStore from './store'
 
 
-// 大文件没有下载 url & type错误
 // datapanel底部页码显示
 // 预加载/缓存
 // hash记录浏览位置
@@ -58,4 +57,4 @@ const App: Component = () => {
   )
 }
 
-export default App;
+export default App

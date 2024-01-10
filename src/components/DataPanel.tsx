@@ -5,7 +5,7 @@ import { onMount } from 'solid-js'
 import { Dynamic } from 'solid-js/web'
 
 import neoStore from '../store'
-import { getBlob } from '../requests'
+import * as requests from '../requests'
 import { formatBytes } from '../utils/format'
 import TouchEvent from '../utils/touch'
 
@@ -35,7 +35,8 @@ const HTMLPanel: Component<any> = props => {
 
 const Comp: Component<{hidden?: boolean}> = (props) => {
   const { store, setStore } = neoStore
-  const [blob] = createResource(() => store.currentFile, getBlob)
+  const fileURL = () => requests.getURL(store.currentFile)
+  const [blob] = createResource(() => store.currentFile, requests.getBlob)
   const blobURL = createMemo(() => URL.createObjectURL(new Blob([blob()])))
   const [blobText] = createResource(() => blob(), async b => await b.text())
   const dataType = createMemo(() => blob()?.type.split('/')[0])
@@ -66,7 +67,7 @@ const Comp: Component<{hidden?: boolean}> = (props) => {
     <section id='dataPanel' ref={panel} classList={{ hidden: props.hidden }} class='w-full h-full text-center' onClick={toggleHeader}>
       <Show when={hasHeader()}>
         <header class='text-sm text-grey-600 absolute top-0 py-2 px-1 w-full bg-rose-100' onClick={() => setHasHeader(false)}>
-          <a href={blobURL()} download={ store.currentFile.name }>{ store.currentFile.name }</a>
+          <a href={fileURL()} download={ store.currentFile.name }>{ store.currentFile.name }</a>
           <p class='text-xs py-2'>{Object.values(formatBytes(store.currentFile.size)).join('')} {blob()?.type}</p>
         </header>
       </Show>

@@ -11,6 +11,7 @@ const newProxyItem = ([key, target]) => ({
 })
 
 export default defineConfig({
+  base: '/index',
   plugins: [solidPlugin()],
   build: {
     target: 'esnext',
