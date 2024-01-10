@@ -8,21 +8,22 @@ import * as MsgBox from './components/MessageBox'
 import TouchEvent from './utils/touch'
 import neoStore from './store'
 
-
-// datapanel底部页码显示
 // 预加载/缓存
-// hash记录浏览位置
 // 文件上传
 // 支持mhtml浏览
 
 const [viewID, setviewID] = createSignal(0)
 const mainComps = [FileExplorer, DataPanel]
+let mainPanel: HTMLElement
 
 const pageNext = () => setviewID(prev => Math.min(prev+1, mainComps.length-1))
 const pagePrev = () => setviewID(prev => Math.max(prev-1, 0))
 
 const { setStore } = neoStore
 const handleKeyEvent = (e:KeyboardEvent) => {
+  if (e.target !== mainPanel) {
+    return
+  }
   switch (e.key) {
     case 'a':
       pagePrev()
@@ -40,7 +41,6 @@ const handleKeyEvent = (e:KeyboardEvent) => {
 }
 
 const App: Component = () => {
-  let mainPanel: HTMLElement
   onMount(() => {
     // 往左滑动，切换下一页
     TouchEvent.bind(mainPanel, 'slideleft', pageNext)

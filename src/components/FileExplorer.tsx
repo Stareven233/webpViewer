@@ -27,7 +27,7 @@ let lastTarget: EventTarget&Element
 let fileListElem: HTMLElement
 
 
-const resolveDir = async (dir: string) => {
+const resolveDir = async (dir: string): Promise<NoeFile[]> => {
   // console.log('dir :>> ', dir)
   let res = await listDir(dir)
   if ('errno' in res) {
@@ -40,21 +40,61 @@ const resolveDir = async (dir: string) => {
   return res
 }
 
-const clickItem = (target:EventTarget&Element, obj: NoeFile) => {
+
+const highlightElem = (target:EventTarget&Element) => {
   if (lastTarget) {
     lastTarget.classList.remove('bg-green-200')
   }
   target.classList.add('bg-green-200')
   lastTarget = target
+}
+
+const clickItem = (target:EventTarget&Element, obj: NoeFile) => {
+  highlightElem(target)
+  let hash: string
   if (obj.isDirectory) {
     setStore('currentDir', dir => NoeFile.path_join(dir, obj.name))
+    hash = store.currentDir
   } else if (obj.isFile) {
     setStore('currentFile', () => obj)
+    hash = NoeFile.path_join(store.currentDir, obj.name)
   }
+  // window.location.href = `#${hash}` 会触发hashchange事件，pushState不会
+  history.pushState({}, '', `#${hash}`)
 }
+
+const handleHashChange = async (e: HashChangeEvent) => {
+  console.log(e)
+  if (!e.isTrusted || e.oldURL===e.newURL) {
+    return
+  }
+  const url = new URL(e.newURL)
+  // rsplit('/', 1) + 解码
+  const [dir, filename] = url.hash.slice(1, ).split(/\/(?=[^\/]+$)/, 2).map(decodeURIComponent)
+  setStore('currentDir', () => dir)
+  // TODO 单独请求该文件
+  const files = await resolveDir(dir)
+  let exist = false
+  for (const f of files) {
+    if (f.name !== filename) {
+      continue
+    }
+    exist = true
+    setStore('currentFile', () => f)
+  }
+  if (!exist) {
+    return
+  }
+  // 定位高亮
+  highlightElem(fileListElem.querySelector(`p[title='${filename}']`))
+}
+// window.onhashchange = handleHashChange
+window.addEventListener('hashchange', handleHashChange, false)
+
 
 const Comp: Component<{hidden?: boolean}> = (props) => {
   const [files, fileAction] = createResource(() => store.currentDir, resolveDir)
+
   const seekFile = (step: number) => {
     let pos = 0
     const fileNum = files().length
@@ -90,6 +130,11 @@ const Comp: Component<{hidden?: boolean}> = (props) => {
     setStore('nextStep', s => 0)
   })
 
+  const inputChange = (e: any) => {
+    setStore('currentDir', dir => e.currentTarget.value)
+    history.pushState({}, '', `#${store.currentDir}`)
+  }
+
   return (
     <aside id='explorer' classList={{ hidden: props.hidden }} class='flex flex-col border w-[100%] mx-2 my-2 overflow-hidden'>
       <section class='flex flex-row text-lg'>
@@ -97,7 +142,7 @@ const Comp: Component<{hidden?: boolean}> = (props) => {
           // flex-grow 属性决定了子容器要占用父容器多少剩余空间
           class='flex-grow border-b outline-none w-[5%] mr-2'
           value={store.currentDir}
-          onChange={e => setStore('currentDir', dir => e.currentTarget.value)}
+          onchange={inputChange}
         />
         <button class='hover:text-green-700 px-2' onClick={e => clickItem(e.target, parentDir)}>↑</button>
         <button class='hover:text-green-700 px-2' onClick={fileAction.refetch}>〇</button>
