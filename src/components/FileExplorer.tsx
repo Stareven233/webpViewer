@@ -20,38 +20,41 @@ const fileTypes = (obj: NoeFile) => {
   return () => comp
 }
 
+
+const { store, setStore } = neoStore
+const parentDir = new NoeFile('..', -1, false, true)
+let lastTarget: EventTarget&Element
+let fileListElem: HTMLElement
+
+
+const resolveDir = async (dir: string) => {
+  // console.log('dir :>> ', dir)
+  let res = await listDir(dir)
+  if ('errno' in res) {
+    console.error('error:', res)
+    MsgBox.popup('error', JSON.stringify(res), MsgBox.Type.error)
+    return
+  }
+  res = res.map((item: any) => new NoeFile(item.name, item.size, item.isFile, item.isDirectory))
+  res.unshift(parentDir)
+  return res
+}
+
+const clickItem = (target:EventTarget&Element, obj: NoeFile) => {
+  if (lastTarget) {
+    lastTarget.classList.remove('bg-green-200')
+  }
+  target.classList.add('bg-green-200')
+  lastTarget = target
+  if (obj.isDirectory) {
+    setStore('currentDir', dir => NoeFile.path_join(dir, obj.name))
+  } else if (obj.isFile) {
+    setStore('currentFile', () => obj)
+  }
+}
+
 const Comp: Component<{hidden?: boolean}> = (props) => {
-  const { store, setStore } = neoStore
-  const parentDir = new NoeFile('..', -1, false, true)
-  let lastTarget: EventTarget&Element
-
-  const resolveDir = async (dir: string) => {
-    // console.log('dir :>> ', dir)
-    let res = await listDir(dir)
-    if ('errno' in res) {
-      console.error('error:', res)
-      MsgBox.popup('error', JSON.stringify(res), MsgBox.Type.error)
-      return
-    }
-    res = res.map((item: any) => new NoeFile(item.name, item.size, item.isFile, item.isDirectory))
-    res.unshift(parentDir)
-    return res
-  }
   const [files, fileAction] = createResource(() => store.currentDir, resolveDir)
-
-  const clickItem = (target:EventTarget&Element, obj: NoeFile) => {
-    if (lastTarget) {
-      lastTarget.classList.remove('bg-green-200')
-    }
-    target.classList.add('bg-green-200')
-    lastTarget = target
-    if (obj.isDirectory) {
-      setStore('currentDir', dir => NoeFile.path_join(dir, obj.name))
-    } else if (obj.isFile) {
-      setStore('currentFile', () => obj)
-    }
-  }
-
   const seekFile = (step: number) => {
     let pos = 0
     const fileNum = files().length
@@ -70,27 +73,13 @@ const Comp: Component<{hidden?: boolean}> = (props) => {
       }
     }
     clickItem(
-      document.querySelector(`#explorer .file-list p[data-idx='${pos}']`),
+      // document.querySelector(`#explorer .file-list p[data-idx='${pos}']`),
+      fileListElem.querySelector(`p[data-idx='${pos}']`),
       files()[pos]
     )
   }
-
-  const handleKeyEvent = (e:KeyboardEvent) => {
-    switch (e.key) {
-      case 'ArrowLeft':
-        seekFile(-1)
-        break;
-      case 'ArrowRight':
-        seekFile(1)
-        break;
-      case '+':
-        break;
-      case '-':
-        break;
-    }
-    // console.log(e)
-  }
-
+    
+  // createResource 不能放在外层，导致seekFile无法暴露，只能用store
   createEffect(() => {
     if (store.nextStep === 0) {
       return
@@ -102,7 +91,7 @@ const Comp: Component<{hidden?: boolean}> = (props) => {
   })
 
   return (
-    <aside id='explorer' classList={{ hidden: props.hidden }} class='flex flex-col border w-[100%] mx-2 my-2 overflow-hidden' tabindex={0} onkeydown={e => handleKeyEvent(e)}>
+    <aside id='explorer' classList={{ hidden: props.hidden }} class='flex flex-col border w-[100%] mx-2 my-2 overflow-hidden'>
       <section class='flex flex-row text-lg'>
         <input
           // flex-grow 属性决定了子容器要占用父容器多少剩余空间
@@ -113,7 +102,7 @@ const Comp: Component<{hidden?: boolean}> = (props) => {
         <button class='hover:text-green-700 px-2' onClick={e => clickItem(e.target, parentDir)}>↑</button>
         <button class='hover:text-green-700 px-2' onClick={fileAction.refetch}>〇</button>
       </section>
-      <section class='file-list overflow-y-scroll'>
+      <section class='file-list overflow-y-scroll' ref={fileListElem}>
         <For each={files()}>{(file, i) =>
           <p data-idx={i()} class='hover:cursor-pointer mb-0.8 whitespace-nowrap' onClick={e => clickItem(e.target, file)} title={file.name}>
             <Dynamic component={fileTypes(file)} />

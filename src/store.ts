@@ -1,5 +1,5 @@
-import { createRoot } from "solid-js"
-import { createStore } from "solid-js/store"
+import { createRoot } from 'solid-js'
+import { createStore } from 'solid-js/store'
 import { NoeFile } from './utils/format'
 
 
