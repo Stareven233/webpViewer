@@ -44,7 +44,7 @@ const Comp: Component<{hidden?: boolean}> = (props) => {
   const [blobText] = createResource(blob, async b => {
     const size = formatBytes(b.size, decodeSizeLimit.scale)
     if (!b.type.startsWith('text/') && size.value>decodeSizeLimit.value) {
-      return `[oversize file ${formatBytes(b.size).show()} for blob.text()]`
+      return `[oversize file ${formatBytes(b.size).show()}/${decodeSizeLimit.show()} for blob.text()]`
     }
     return await b.text()
   })
@@ -84,7 +84,7 @@ const Comp: Component<{hidden?: boolean}> = (props) => {
 
       <div class='flex flex-col h-full justify-center overflow-y-scroll'>
         {/* 套一层show，防止blob未解析时报错 */}
-        <p class='text-2xl'>{blob.loading && 'Loading...'}</p>
+        <p class='text-2xl absolute'>{blob.loading && 'Loading...'}</p>
         <Show when={dataType() in options} fallback={PanelFallback}>
           <Dynamic component={options[dataType()]} />
         </Show>

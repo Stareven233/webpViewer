@@ -4,7 +4,20 @@
 现在的样子更像是一个文件浏览器，代码基于solidjs+tsx，支持用其他设备浏览目标设备的文件图片（用手机看电脑上的图片）。样式比较简陋，主打一个凑合Ψ(￣∀￣)Ψ
 
 ## screenshot
-![test gif](./figure/test.gif)
+<div style="display: flex;align-items: center;flex-direction: column;justify-content: space-around;">
+  <img width="20%" src="./figure/v0.3.1_mobile.gif">
+  <p>mobile demo v0.3.1</p>
+</div>
+
+## TODO
+- [x] 滑动翻页
+- [ ] 优化NoeFile
+- [ ] 预加载/缓存(blob)
+- [ ] 固定文件url(去掉/pwd)
+- [ ] 优化blob读取
+- [ ] 文件上传
+- [ ] 支持html浏览
+- [ ] 支持mhtml浏览
 
 ## shortcut
 ### common
