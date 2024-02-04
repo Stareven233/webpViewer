@@ -13,8 +13,8 @@ const [viewID, setviewID] = createSignal(0)
 const mainComps = [FileExplorer, DataPanel]
 let mainPanel: HTMLElement
 
-const pageNext = () => setviewID(prev => Math.min(prev+1, mainComps.length-1))
-const pagePrev = () => setviewID(prev => Math.max(prev-1, 0))
+const viewNext = () => setviewID(prev => Math.min(prev+1, mainComps.length-1))
+const viewPrev = () => setviewID(prev => Math.max(prev-1, 0))
 
 const { setStore } = neoStore
 const handleKeyEvent = (e:KeyboardEvent) => {
@@ -23,10 +23,10 @@ const handleKeyEvent = (e:KeyboardEvent) => {
   }
   switch (e.key) {
     case 'a':
-      pagePrev()
+      viewPrev()
       break
     case 'd':
-      pageNext()
+      viewNext()
       break
     case 'w':
       setStore('nextStep', () => -1)
@@ -40,9 +40,9 @@ const handleKeyEvent = (e:KeyboardEvent) => {
 const App: Component = () => {
   onMount(() => {
     // 往左滑动，切换下一页
-    TouchEvent.bind(mainPanel, 'slideleft', pageNext)
+    TouchEvent.bind(mainPanel, 'slideleft', viewNext)
     // 往右滑动，切换前一页
-    TouchEvent.bind(mainPanel, 'slideright', pagePrev)
+    TouchEvent.bind(mainPanel, 'slideright', viewPrev)
   })
   return (
     <main ref={mainPanel} class='flex flex-row h-full mt-2 selection:bg-orange-300' onkeydown={e => handleKeyEvent(e)} tabindex={1}>

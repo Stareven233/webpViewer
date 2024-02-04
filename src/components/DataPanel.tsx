@@ -39,7 +39,7 @@ const HTMLPanel: Component<any> = props => {
 
 const Comp: Component<{hidden?: boolean}> = (props) => {
   const { store, setStore } = neoStore
-  const fileURL = createMemo(() => requests.getURL(store.currentFile))
+  const fileURL = createMemo(() => requests.constructFileURL(store.currentFile))
   const [blob] = createResource(() => store.currentFile, requests.getBlob)
   const [blobText] = createResource(blob, async b => {
     const size = formatBytes(b.size, decodeSizeLimit.scale)

@@ -7,7 +7,6 @@ const app = express()
 const port = 4412
 const mountPoint = '/index'
 const appRoot = path.join(path.resolve('.'), 'dist')
-let pwd = 'C:/'
 
 app.get(mountPoint, (req, res) => {
   res.sendFile(path.join(appRoot, 'index.html'))
@@ -16,9 +15,7 @@ app.use(mountPoint, express.static(appRoot))
 
 app.get('/list', async (req, res) => {
   // console.log('req.query :>> ', req.query)
-  if (req.query.dir) {
-    pwd = req.query.dir
-  }
+  const pwd = req.query.dir ?? 'C:/'
   try {
     const files = await fs.readdir(pwd, {withFileTypes: true})
     // fs.Dirent对象数组 https://nodejs.cn/api/fs.html#%E7%B1%BBfsdirent
@@ -51,12 +48,13 @@ app.get('/list', async (req, res) => {
   }
 })
 
-app.get('/pwd/:file', async (req, res) => {
-  const fileName = req.params.file
-  if (fileName === null) {
+app.get('/files', async (req, res) => {
+  const pwd = req.query.dir
+  const name = req.query.name
+  if (!pwd || !name) {
     return
   }
-  res.sendFile(fileName, {root: pwd, dotfiles: 'allow'})
+  res.sendFile(name, {root: pwd, dotfiles: 'allow'})
 })
 
 app.listen(port, () => {

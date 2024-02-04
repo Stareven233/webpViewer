@@ -1,39 +1,82 @@
 export class NoeFile {
   public name: string
-  public size: number
-  public isFile: boolean
-  public isDirectory: boolean
+  public dir: string
+  public size: number  // bytes
+  public type: FileType
 
-  constructor(name:string, size:number, isFile:boolean, isDirectory:boolean) {
+  constructor(dir:string, name:string, size:number, isFile:boolean, isDirectory:boolean) {
+    this.dir = dir
     this.name = name
     this.size = size
-    this.isFile = isFile
-    this.isDirectory = isDirectory
+    if (isFile) {
+      this.type = FileType.file
+    }
+    else if (isDirectory) {
+      this.type = FileType.directory
+    }
   }
 
+  // path_join = (...paths) => {
   public static path_join(...paths: string[]) {
-    const old_paths = []
-    const new_paths = []
-    
-    paths.forEach(p => {
-      old_paths.push(...p.split('/'))
-    })
-    old_paths.slice(1, ).forEach(p => {
-      if (p === '..') {
-        const last = new_paths.pop()
-        if (!!last) {
-          new_paths.push(...last.split('/').slice(0, -1))
+    // console.log(paths)
+    const pathParts = []
+    for (const p of paths) {
+      if (!p) { continue }
+      pathParts.push(...p.split('/'))
+      // pathParts.push.apply(pathParts, p.split('/'))
+    }
+    const [firstPart, ...restParts] = pathParts.filter(v => !!v)
+    pathParts.splice(0, pathParts.length)
+
+    // 先不管开头部分
+    restParts.forEach(p => {
+      if (p === '.') {
+        null
+      }
+      else if (p === '..') {
+        const last = pathParts.at(-1)
+        // 说明到头了，没有上一级咯
+        if (!last || last === '..') {
+          pathParts.push('..')
         }
-      } else if (/^[^\\\/:*?'<>|]+$/.test(p)) {
-        new_paths.push(p)
+        else {
+          pathParts.pop()
+          pathParts.push(...last.split('/').slice(0, -1))
+        }
+      }
+      // else if (/^[^\\\/:*?'<>|]+$/.test(p)) {
+      else {
+        pathParts.push(p)
       }
     })
-    if (/^[A-Za-z]:$/.test(old_paths[0])) {
-      new_paths.unshift(`${old_paths[0]}/`)
+
+    // windows开头是盘符
+    if (/^[A-Za-z]:$/.test(firstPart)) {
+      pathParts.unshift(`${firstPart}/`)
     }
-    return new_paths.join('/')
+    // linux: /dir/xx
+    else if (firstPart === '') {
+      if (pathParts.length === 0) {pathParts.push('/')}
+      // 还有元素放''等着后面join加/即可
+      else {pathParts.unshift('')}
+    }
+    // path part: dir/xx
+    else {
+      // 特殊考虑此时 .. 还处理不完，那么firstPart被消耗
+      if (pathParts[0] === '..') {pathParts.shift()}
+      // new_paths长度不管是不是0都在开头加上firstPart
+      else {pathParts.unshift(firstPart)}
+    }
+    // return pathParts.join('/')
+    return pathParts.filter(v => v !== '..').join('/')
+  }
+
+  public fullpath() {
+    return NoeFile.path_join(this.dir, this.name)
   }
 }
+
+export enum FileType {file, directory}
 
 export class FileSize {
   public value: number

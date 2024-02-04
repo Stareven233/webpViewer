@@ -4,15 +4,15 @@ import { createEffect } from 'solid-js';
 import { Dynamic } from 'solid-js/web'
 import neoStore from '../store'
 import { listDir } from '../requests'
-import { NoeFile } from '../utils/format'
+import { NoeFile, FileType } from '../utils/format'
 import * as MsgBox from './MessageBox'
 
 
 const fileTypes = (obj: NoeFile) => {
   let comp: any
-  if (obj.isFile) {
+  if (obj.type === FileType.file) {
     comp = <span class='text-green-500 mr-1 select-none'>F</span>
-  } else if (obj.isDirectory) {
+  } else if (obj.type === FileType.directory) {
     comp = <span class='text-orange-400 mr-1 select-none'>D</span>
   } else {
     comp = <span class='text-gray-600 mr-1 select-none'>U</span>
@@ -22,7 +22,7 @@ const fileTypes = (obj: NoeFile) => {
 
 
 const { store, setStore } = neoStore
-const parentDir = new NoeFile('..', -1, false, true)
+const parentDir = new NoeFile(null, '..', -1, false, true)
 let lastTarget: EventTarget&Element
 let fileListElem: HTMLElement
 
@@ -35,7 +35,7 @@ const resolveDir = async (dir: string): Promise<NoeFile[]> => {
     MsgBox.popup('error', JSON.stringify(res), MsgBox.Type.error)
     return
   }
-  res = res.map((item: any) => new NoeFile(item.name, item.size, item.isFile, item.isDirectory))
+  res = res.map((item: any) => new NoeFile(dir, item.name, item.size, item.isFile, item.isDirectory))
   res.unshift(parentDir)
   return res
 }
@@ -52,14 +52,15 @@ const highlightElem = (target:EventTarget&Element) => {
 const clickItem = (target:EventTarget&Element, obj: NoeFile) => {
   highlightElem(target)
   let hash: string
-  if (obj.isDirectory) {
+  if (obj.type === FileType.directory) {
     setStore('currentDir', dir => NoeFile.path_join(dir, obj.name))
     hash = store.currentDir
-  } else if (obj.isFile) {
+  } else if (obj.type === FileType.file) {
     setStore('currentFile', () => obj)
     hash = NoeFile.path_join(store.currentDir, obj.name)
   }
   // window.location.href = `#${hash}` 会触发hashchange事件，pushState不会
+  document.title = obj.name
   history.pushState({}, '', `#${hash}`)
 }
 
@@ -111,7 +112,7 @@ const Comp: Component<{hidden?: boolean}> = (props) => {
     const lastPos = pos
   
     // 跳过目录，只显示文件
-    while (!fileList[pos].isFile) {
+    while (fileList[pos].type !== FileType.file) {
       pos = (pos + direction + fileNum) % fileNum
       // 避免不存在文件的情况
       if (pos === lastPos) {
