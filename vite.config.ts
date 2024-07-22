@@ -21,7 +21,7 @@ export default defineConfig({
     port: 6628,
     cors: true,
     proxy: Object.assign({}, ...[
-      ['api', 'http://172.17.174.111:4412'],
+      ['api', 'http://localhost:4412'],
     ].map(newProxyItem))
   }
 });

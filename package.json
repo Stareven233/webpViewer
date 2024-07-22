@@ -1,6 +1,6 @@
 {
   "name": "webp-viewer",
-  "version": "0.3.3",
+  "version": "0.4.0",
   "description": "",
   "author": "noetu",
   "type": "module",
@@ -23,6 +23,8 @@
   },
   "dependencies": {
     "express": "^4.18.2",
+    "jsdom": "^24.1.1",
+    "mhtml2html": "^3.0.0",
     "solid-js": "^1.7.11"
   }
 }

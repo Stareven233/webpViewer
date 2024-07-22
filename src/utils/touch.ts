@@ -48,7 +48,7 @@ export default (function () {
       return
     }
 
-    const delta = this.touch_start
+    const delta = Object.assign({}, this.touch_start)
     delta.time = new Date().getTime() - delta.time
     delta.x -= event.changedTouches[0].pageX
     delta.y -= event.changedTouches[0].pageY
@@ -58,10 +58,10 @@ export default (function () {
     const gesture = (name: string) => {
       const key = `event_${name}`
       if (!Object.keys(this).includes(key)) {
-        console.log('no', name)
+        // console.warn('no', name, 'in', this)
         return
       }
-      console.log('has', name)
+      // console.log('has', name)
       this[key].map((fn: Function) => fn(event))
     }
 
@@ -70,11 +70,12 @@ export default (function () {
       delta.time < 500? gesture('click'): gesture('press')
     } else if (abs_x > threshold && abs_y < threshold) {
       delta.x > 0? gesture('slideleft'): gesture('slideright')
-    } else if (abs_y > threshold && abs_x < threshold) {
+    } else if (this.touch_start.x > this.clientWidth/2 && abs_y > threshold && abs_x < threshold) {
+      // 区域右边才支持上下切换，左侧保留给原生的页面滑动
       delta.y > 0? gesture('slidedown'): gesture('slideup')
     }
   }
-
+ 
   function bind(dom: HTMLElement, type: string, callback: Function) {
     const key = `event_${type}`
     if (!dom) {
@@ -82,9 +83,9 @@ export default (function () {
     }
     const flag = eventArr.some(key => dom[key])
     if (!flag) {
-      dom.addEventListener('touchstart', touchStart)
-      dom.addEventListener('touchmove', touchMove)
-      dom.addEventListener('touchend', touchEnd)
+      dom.addEventListener('touchstart', touchStart, true)
+      dom.addEventListener('touchmove', touchMove, true)
+      dom.addEventListener('touchend', touchEnd, true)
     }
     if (!dom[key]) {
       dom[key] = []

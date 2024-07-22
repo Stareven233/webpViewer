@@ -15,8 +15,9 @@
 - [ ] 文件上传
 - [ ] 预加载/缓存(blob)
 - [ ] 优化blob读取
-- [ ] 支持html浏览
-- [ ] 支持mhtml浏览
+- [x] 支持html浏览
+- [x] 支持mhtml浏览
+- [ ] 支持linux，windows盘符选择 https://github.com/cristiammercado/node-disk-info, 或者由用户手动确定根目录/下面的一级目录内容
 
 ## shortcut
 ### common

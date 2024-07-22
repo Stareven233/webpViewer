@@ -2,8 +2,12 @@
 import express from 'express'
 import path from 'node:path'
 import * as fs from 'node:fs/promises'
+import mhtml2html from 'mhtml2html'
+import { JSDOM } from 'jsdom'
 
 const app = express()
+// const host = 'localhost'
+const host = '0.0.0.0'
 const port = 4412
 const mountPoint = '/index'
 const appRoot = path.join(path.resolve('.'), 'dist')
@@ -54,9 +58,18 @@ app.get('/files', async (req, res) => {
   if (!pwd || !name) {
     return
   }
+  if (name.endsWith('.mhtml')) {
+    // 将mhtml处理成html: https://github.com/msindwan/mhtml2html
+    const contents = await fs.readFile(path.join(pwd, name), { encoding: 'utf8' })
+    const html = await mhtml2html.parse(contents, { htmlOnly: true, parseDOM: h => new JSDOM(h) })
+    // const html = (await JSDOM.fromFile(path.join(pwd, name))).serialize()
+    res.contentType('text/html')
+    res.send(html.serialize())
+    return
+  }
   res.sendFile(name, {root: pwd, dotfiles: 'allow'})
 })
 
 app.listen(port, () => {
-  console.log(`app run at http://localhost:${port}${mountPoint}`)
+  console.log(`app run at http://${host}:${port}${mountPoint}`)
 })

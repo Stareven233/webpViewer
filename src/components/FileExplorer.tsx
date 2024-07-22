@@ -51,17 +51,17 @@ const highlightElem = (target:EventTarget&Element) => {
 
 const clickItem = (target:EventTarget&Element, obj: NoeFile) => {
   highlightElem(target)
-  let hash: string
+  let path: string
   if (obj.type === FileType.directory) {
     setStore('currentDir', dir => NoeFile.path_join(dir, obj.name))
-    hash = store.currentDir
+    path = store.currentDir
   } else if (obj.type === FileType.file) {
     setStore('currentFile', () => obj)
-    hash = NoeFile.path_join(store.currentDir, obj.name)
+    path = NoeFile.path_join(store.currentDir, obj.name)
   }
   // window.location.href = `#${hash}` 会触发hashchange事件，pushState不会
-  document.title = obj.name
-  history.pushState({}, '', `#${hash}`)
+  document.title = NoeFile.path_join(...path.split('/').slice(-2,))
+  history.pushState({}, '', `#${path}`)
 }
 
 const Comp: Component<{hidden?: boolean}> = (props) => {

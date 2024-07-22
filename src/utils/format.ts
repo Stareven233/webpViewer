@@ -1,10 +1,16 @@
+import { Resource } from 'solid-js'
+
 export class NoeFile {
   public name: string
   public dir: string
   public size: number  // bytes
   public type: FileType
+  // public url?: () => string
+  public url?: string
+  public blob?: Resource<Blob>
+  public blobText?: Resource<string>
 
-  constructor(dir:string, name:string, size:number, isFile:boolean, isDirectory:boolean) {
+  constructor(dir:string='', name:string='', size:number=-1, isFile:boolean=false, isDirectory:boolean=false) {
     this.dir = dir
     this.name = name
     this.size = size
@@ -14,6 +20,18 @@ export class NoeFile {
     else if (isDirectory) {
       this.type = FileType.directory
     }
+  }
+
+  public toString() {
+    return `
+      dir=${this.dir}\nname=${this.name}\nsize=${this.size}\ntype=${this.type}\nmime=${this.mime()}\n
+      url=${this.url}\nblob=${typeof this.blob}\nblobText=${typeof this.blobText}
+    `
+  }
+
+  public mime() {
+    return this.blob()?.type
+    // return this.blob()?.type.split('/')[0]
   }
 
   // path_join = (...paths) => {
@@ -73,6 +91,16 @@ export class NoeFile {
 
   public fullpath() {
     return NoeFile.path_join(this.dir, this.name)
+  }
+
+  public update(another: NoeFile) {
+    this.name = another.name ?? this.name
+    this.dir = another.dir ?? this.dir
+    this.size = another.size ?? this.size
+    this.type = another.type ?? this.type
+    this.url = another.url ?? this.url
+    this.blob = another.blob ?? this.blob
+    this.blobText = another.blobText ?? this.blobText
   }
 }
 
