@@ -2,12 +2,12 @@
 import express from 'express'
 import path from 'node:path'
 import * as fs from 'node:fs/promises'
-import mhtml2html from 'mhtml2html'
-import { JSDOM } from 'jsdom'
+import { parseMHTML } from './parseMHTML.js'
+
 
 const app = express()
-// const host = 'localhost'
-const host = '0.0.0.0'
+const host = 'localhost'
+// const host = '0.0.0.0'
 const port = 4412
 const mountPoint = '/index'
 const appRoot = path.join(path.resolve('.'), 'dist')
@@ -59,12 +59,9 @@ app.get('/files', async (req, res) => {
     return
   }
   if (name.endsWith('.mhtml')) {
-    // 将mhtml处理成html: https://github.com/msindwan/mhtml2html
-    const contents = await fs.readFile(path.join(pwd, name), { encoding: 'utf8' })
-    const html = await mhtml2html.parse(contents, { htmlOnly: true, parseDOM: h => new JSDOM(h) })
-    // const html = (await JSDOM.fromFile(path.join(pwd, name))).serialize()
+    const html = await parseMHTML(path.join(pwd, name))
     res.contentType('text/html')
-    res.send(html.serialize())
+    res.send(html)
     return
   }
   res.sendFile(name, {root: pwd, dotfiles: 'allow'})
