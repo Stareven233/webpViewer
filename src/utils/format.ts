@@ -1,5 +1,6 @@
 import { Resource } from 'solid-js'
 
+
 export class NoeFile {
   public name: string
   public dir: string
@@ -32,6 +33,13 @@ export class NoeFile {
   public mime() {
     return this.blob()?.type
     // return this.blob()?.type.split('/')[0]
+  }
+
+  public ext() {
+    if (!this.name.includes('.')) {
+      return ''
+    }
+    return this.name.split('.').at(-1)
   }
 
   // path_join = (...paths) => {
@@ -70,7 +78,7 @@ export class NoeFile {
 
     // windows开头是盘符
     if (/^[A-Za-z]:$/.test(firstPart)) {
-      pathParts.unshift(`${firstPart}/`)
+      pathParts.unshift(firstPart)
     }
     // linux: /dir/xx
     else if (firstPart === '') {
@@ -121,6 +129,7 @@ export class FileSize {
 }
 
 export function formatBytes(size:number, scale='', decimals=2) {
+  // TODO 整合进FileSize，再挂给NoeFile
   if (size === 0) {
     return new FileSize(0, 'B')
   } else if (size < 0) {

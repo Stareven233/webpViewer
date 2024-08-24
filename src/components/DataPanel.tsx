@@ -5,13 +5,13 @@ import { onMount } from 'solid-js'
 import { Dynamic } from 'solid-js/web'
 
 import neoStore from '../store'
+import { config } from '../store'
 import * as requests from '../requests'
 import { formatBytes, NoeFile } from '../utils/format'
 import TouchEvent from '../utils/touch'
 
 
 // 超过限制的其余类型文件（text以外）不解码为文本，否则速度很慢
-const maxSize = requests.maxFileSize
 const [hasHeader, setHasHeader] = createSignal(false)
 const toggleHeader = (e: MouseEvent) => {
   if (e.clientY > 100) {
@@ -34,7 +34,7 @@ const TextPanel: Component<any> = props => {
 }
 
 const HTMLPanel: Component<any> = props => {
-  let frame: HTMLIFrameElement 
+  let frame: HTMLIFrameElement
   const onLoad = () => {
     frame.contentDocument.addEventListener('click', toggleHeader)
   }
@@ -58,7 +58,7 @@ const showPanels = (file: NoeFile) => {
 
   if (mime.startsWith('image/')) {
     return () => <ImagePanel url={file.url} name={file.name} />
-  } else if (mime.startsWith('text/')) {
+  } else if (mime.startsWith('text/') || config.extOfText.has(file.ext().toLowerCase())) {
     return () => <TextPanel text={file.blobText()} />
   }
   return () => <p class='text-2xl'>该文件暂不支持浏览: {file.toString()}</p>
@@ -66,6 +66,7 @@ const showPanels = (file: NoeFile) => {
 
 const Comp: Component<{hidden?: boolean}> = (props) => {
   const { store, setStore } = neoStore
+  const maxSize = config.maxFileSize
   let panel: HTMLElement
   onMount(() => {
     TouchEvent.bind(panel, 'slideup', () => setStore('nextStep', () => -1))
@@ -99,7 +100,7 @@ const Comp: Component<{hidden?: boolean}> = (props) => {
 
       <div class='flex flex-col h-full justify-center overflow-y-scroll'>
         {/* 套一层show，防止blob未解析时报错 */}
-        <p class='text-2xl absolute'>{blob.loading && 'Loading...'}</p>
+        <p class='text-2xl w-full absolute text-center'>{blob.loading && 'Loading...'}</p>
         <Show when={file.mime()}>
           {/* 依赖 Show when 和 响应式函数共同追踪文件选择状态 */}
           <Dynamic component={showPanels(file)} />
