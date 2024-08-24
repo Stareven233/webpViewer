@@ -28,17 +28,23 @@ function injectMedia2HTML(mobj) {
     // https://www.cnblogs.com/coder-Fish/p/15069767.html
     // data:text/css,xxxx (CSS代码)
     // data:text/css;base64,xxxx (base64编码的CSS代码)
-    // FIXME htt=ps://p23.07pbc.cc/i/2024/07/26/uay5s9.jpg
     const asset = mobj.media[id]
     if (!asset) {
       console.warn('getDataURI error: ', id)
       return `error: id=${id}`
     }
-    if (returnURI) {
-      const isBase64 = asset.encoding === 'base64'
-      return `data:${asset.type}${isBase64? ';base64': ''},${asset.data}`
+    if (!returnURI) {
+      return asset.data
     }
-    return asset.data
+    if (asset.encoding === 'base64') {
+      return `data:${asset.type};base64,${asset.data}`
+    } else if (asset.type.startsWith('image/') && asset.encoding === 'binary') {
+      const t  = new Buffer.from(asset.data, 'binary').toString('base64')
+      return `data:${asset.type};base64,${t}`
+    }
+    // const isBase64 = asset.encoding === 'base64'
+    // return `data:${asset.type}${isBase64? ';base64': ''},${asset.data}`
+    return `data:${asset.type},${asset.data}`
   }
 
   // 默认只有且只处理第一个frame
@@ -67,18 +73,27 @@ function injectMedia2HTML(mobj) {
 
 export async function parseMHTML(filePath) {
   // 将mhtml处理成html: https://github.com/msindwan/mhtml2html
+  const load = async encoding => {
+    // const d = 'D:/documents/t'
+    // const f = path.join(d, 'text.mhtml')
+    let contents = await fs.readFile(filePath, { encoding: encoding })
+    // mhtml2html@Error: Unexpected EOF: 要求mhtml文件最后有且只能有一个空行
+    contents = contents.replace(/[\s\t\r\n]*$/, '\n')
+    return mhtml2html.parse(contents, { htmlOnly: false, parseDOM: h => new JSDOM(h) })
+  }
 
-  // const d = 'D:/documents/t'
-  // const f = path.join(d, 'text.mhtml')
-  let contents = await fs.readFile(filePath, { encoding: 'utf8' })
-  // mhtml2html@Error: Unexpected EOF: 要求mhtml文件最后有且只能有一个空行
-  contents = contents.replace(/[\s\t\r\n]*$/, '\n')
-  const mobj = await mhtml2html.parse(contents, { htmlOnly: false, parseDOM: h => new JSDOM(h) })
-  // const c = await html.serialize()
+  let mobj = await load('utf-8')
+  if (Object.values(mobj.frames)[0].encoding === 'binary') {
+    mobj = await load('latin1')
+  }
+
+  // const h = new JSDOM(contents).serialize()
+  // await fs.writeFile(filePath.replace('.mhtml', '.html'), h, { encoding: 'utf8' })
+  // const mobj_json = JSON.stringify(mobj, null, 2)
+  // await fs.writeFile(filePath.replace('.mhtml', '.json'), mobj_json, { encoding: 'latin1' })
+  // return
+
   // 将对象转换为json并加入易读的缩进
   const html = injectMedia2HTML(mobj)
   return html
-  // await fs.writeFile(f.replace('.mhtml', '.html'), html, { encoding: 'utf8' })
-  // const mobj_json = JSON.stringify(mobj, null, 2)
-  // await fs.writeFile(f.replace('.mhtml', '.json'), mobj_json, { encoding: 'utf8' })
 }
