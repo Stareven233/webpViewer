@@ -72,7 +72,8 @@ function injectMedia2HTML(mobj) {
 
 
 export async function parseMHTML(filePath) {
-  // 将mhtml处理成html: https://github.com/msindwan/mhtml2html
+  '将mhtml处理成html: https://github.com/msindwan/mhtml2html'
+
   const load = async encoding => {
     // const d = 'D:/documents/t'
     // const f = path.join(d, 'text.mhtml')
@@ -96,4 +97,25 @@ export async function parseMHTML(filePath) {
   // 将对象转换为json并加入易读的缩进
   const html = injectMedia2HTML(mobj)
   return html
+}
+
+
+export async function checkHTMLResource(filePath) {
+  '检查HTML是否引用了本地资源，默认位于同一目录下的某个文件夹内。若是则返回该文件夹名'
+
+  const [name, ext] = filePath.split('.', 2)
+  if (ext !== 'html') {
+    console.warn(`checkHTMLResource: not html file: ${filePath}`)
+    return null
+  }
+  // 默认html的资源文件夹名为html名+'_files'
+  try {
+    const dir = `${name}_files`
+    await fs.access(dir, fs.constants.R_OK)
+    let stem = dir.split(/\/|\\(?=[^\/\\]+$)/, 2)[1]
+    stem = `/${encodeURIComponent(stem)}`
+    return [dir, stem]
+  } catch {
+    return null
+  }
 }

@@ -2,7 +2,7 @@
 import express from 'express'
 import path from 'node:path'
 import * as fs from 'node:fs/promises'
-import { parseMHTML } from './parseMHTML.js'
+import { parseMHTML, checkHTMLResource } from './htmlParser.js'
 
 
 const app = express()
@@ -58,11 +58,28 @@ app.get('/files', async (req, res) => {
   if (!pwd || !name) {
     return
   }
-  if (name.endsWith('.mhtml')) {
-    const html = await parseMHTML(path.join(pwd, name))
-    res.contentType('text/html')
-    res.send(html)
-    return
+  const filePath = path.join(pwd, name)
+  const ext = name.split(/\.(?=[^\.]+?$)/, 2)[1]
+
+  switch (ext) {
+    case 'mhtml':
+      const html = await parseMHTML(filePath)
+      res.contentType('text/html')
+      res.send(html)
+      return
+    case 'html':
+      const r = await checkHTMLResource(filePath)
+      if (r) {
+        const [dir, stem_uri] = r
+        // 当然，dev模式下由于端口号不同不会生效
+        app.use(stem_uri, express.static(dir))
+      }
+      break
+    case 'jfif':
+      res.contentType('image/jpeg')
+      break
+    default:
+      break
   }
   res.sendFile(name, {root: pwd, dotfiles: 'allow'})
 })

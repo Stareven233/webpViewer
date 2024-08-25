@@ -35,11 +35,11 @@ export class NoeFile {
     // return this.blob()?.type.split('/')[0]
   }
 
-  public ext() {
+  public extname() {
     if (!this.name.includes('.')) {
       return ''
     }
-    return this.name.split('.').at(-1)
+    return this.name.split(/\.(?=[^\.]+?$)/, 2)[1]
   }
 
   // path_join = (...paths) => {

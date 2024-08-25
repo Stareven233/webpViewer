@@ -58,7 +58,7 @@ const showPanels = (file: NoeFile) => {
 
   if (mime.startsWith('image/')) {
     return () => <ImagePanel url={file.url} name={file.name} />
-  } else if (mime.startsWith('text/') || config.extOfText.has(file.ext().toLowerCase())) {
+  } else if (mime.startsWith('text/') || config.extOfText.has(file.extname().toLowerCase())) {
     return () => <TextPanel text={file.blobText()} />
   }
   return () => <p class='text-2xl'>该文件暂不支持浏览: {file.toString()}</p>
