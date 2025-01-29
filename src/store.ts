@@ -1,6 +1,6 @@
 import { createRoot } from 'solid-js'
 import { createStore } from 'solid-js/store'
-import { NoeFile, FileSize } from './utils/format'
+import { NoeFile, FileSize } from './utils/format.ts'
 
 
 export const config = {

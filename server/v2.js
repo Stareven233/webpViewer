@@ -3,7 +3,8 @@ import express from 'express'
 import path from 'node:path'
 import * as fs from 'node:fs/promises'
 import * as M from './htmlParser.js'
-
+import multer from 'multer'
+const upload = multer({ dest: 'uploads/' })
 
 const app = express()
 const host = 'localhost'
@@ -97,6 +98,18 @@ app.get(`${M.MHTMLENDPOINT}/*`, async (req, res) => {
 app.delete(M.MHTMLENDPOINT, async (req, res) => {
   M.ResourceCache.clear()
   res.status(200).json({msg: 'ok'})
+})
+
+app.post('/upload', upload.single('file'), async (req, res) => {
+  const dir = req.query.dir
+  const filePath = path.join(dir, req.file.originalname)
+  try {
+    await fs.rename(req.file.path, filePath)
+    res.status(200).send({ message: 'File uploaded successfully' })
+  } catch (error) {
+    console.error('Error uploading file:', error)
+    res.status(500).send({ message: 'Failed to upload file' })
+  }
 })
 
 app.listen(port, () => {

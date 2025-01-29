@@ -1,5 +1,5 @@
-import { NoeFile, formatBytes, FileType } from './utils/format'
-import { config } from './store'
+import { NoeFile, formatBytes, FileType } from './utils/format.ts'
+import { config } from './store.ts'
 
 
 // 开发服务器 (serve 命令) 运行在 development （开发）模式，而 build 命令运行在 production （生产）模式
@@ -34,4 +34,21 @@ export const getBlob = async (file: NoeFile) => {
   }
   // console.log(filename, blob.type)
   return blob
+}
+
+
+export const uploadFile = async (dir: string, formData: FormData) => {
+  const response = await fetch(`/upload?dir=${encodeURIComponent(dir)}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'multipart/form-data'
+    },
+    body: formData,
+  })
+
+  if (!response.ok) {
+    throw new Error(`HTTP error! status: ${response.status}`);
+  }
+
+  return response.json();
 }

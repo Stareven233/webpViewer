@@ -2,11 +2,11 @@ import type { Component } from 'solid-js'
 import { createSignal } from 'solid-js'
 import { onMount } from "solid-js"
 
-import FileExplorer from './components/FileExplorer'
-import DataPanel from './components/DataPanel'
-import * as MsgBox from './components/MessageBox'
-import TouchEvent from './utils/touch'
-import neoStore from './store'
+import FileExplorer from './components/FileExplorer.tsx'
+import DataPanel from './components/DataPanel.tsx'
+import * as MsgBox from './components/MessageBox.tsx'
+import TouchEvent from './utils/touch.ts'
+import neoStore from './store.ts'
 
 
 const [viewID, setviewID] = createSignal(0)

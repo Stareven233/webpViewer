@@ -2,10 +2,11 @@ import type { Component } from 'solid-js'
 import { createResource, For } from 'solid-js'
 import { createEffect } from 'solid-js';
 import { Dynamic } from 'solid-js/web'
-import neoStore from '../store'
-import { listDir } from '../requests'
-import { NoeFile, FileType } from '../utils/format'
-import * as MsgBox from './MessageBox'
+import neoStore from '../store.ts'
+import { listDir } from '../requests.ts'
+import { NoeFile, FileType } from '../utils/format.ts'
+import * as MsgBox from './MessageBox.tsx'
+import FileUploader from './FileUploader.tsx'
 
 
 const fileTypes = (obj: NoeFile) => {
@@ -165,6 +166,7 @@ const Comp: Component<{hidden?: boolean}> = (props) => {
           </p>
         }</For>
       </section>
+      <FileUploader></FileUploader>
     </aside>
   )
 }

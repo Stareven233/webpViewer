@@ -1,5 +1,6 @@
-import { defineConfig } from 'vite';
-import solidPlugin from 'vite-plugin-solid';
+import { defineConfig } from 'vite'
+import solidPlugin from 'vite-plugin-solid'
+import tailwindcss from '@tailwindcss/vite'
 
 const newProxyItem = ([key, target]) => ({
   // 匹配 */$key/**
@@ -12,7 +13,7 @@ const newProxyItem = ([key, target]) => ({
 
 export default defineConfig({
   base: '/index',
-  plugins: [solidPlugin()],
+  plugins: [solidPlugin(), tailwindcss()],
   build: {
     target: 'esnext',
   },  
@@ -24,4 +25,4 @@ export default defineConfig({
       ['api', 'http://localhost:4412'],
     ].map(newProxyItem))
   }
-});
+})
