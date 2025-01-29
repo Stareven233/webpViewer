@@ -10,15 +10,19 @@
 </div>
 
 ## TODO
-- [x] 滑动翻页
-- [x] 页面标题随打开的文件夹变化
 - [ ] 文件上传
+- [ ] 打乱、排序
+- [ ] 优化滑动翻页
+- [x] 改用 https://www.npmjs.com/package/fast-mhtml
+- [ ] 解析完的mhtml就存在本地
+- [x] 页面标题随打开的文件夹变化
 - [ ] 预加载/缓存(blob)
 - [ ] 优化blob读取
 - [x] 支持html浏览
 - [x] 支持mhtml浏览
+- [ ] 滑动翻页
 - [ ] 支持linux，windows盘符选择 https://github.com/cristiammercado/node-disk-info, 或者由用户手动确定根目录/下面的一级目录内容
-- [ ] v2.js -> v2.ts
+- [ ] v2.js -> v2.go | https://github.com/gonejack/mhtml-to-html | https://github.com/pilate/pimht
 
 ## shortcut
 ### common

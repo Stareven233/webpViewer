@@ -2,7 +2,7 @@
 import express from 'express'
 import path from 'node:path'
 import * as fs from 'node:fs/promises'
-import { parseMHTML, checkHTMLResource } from './htmlParser.js'
+import * as M from './htmlParser.js'
 
 
 const app = express()
@@ -63,12 +63,12 @@ app.get('/files', async (req, res) => {
 
   switch (ext) {
     case 'mhtml':
-      const html = await parseMHTML(filePath)
+      const html = await M.parseMHTMLIndex(filePath)
       res.contentType('text/html')
       res.send(html)
       return
     case 'html':
-      const r = await checkHTMLResource(filePath)
+      const r = await M.checkHTMLResource(filePath)
       if (r) {
         const [dir, stem_uri] = r
         // 当然，dev模式下由于端口号不同不会生效
@@ -82,6 +82,21 @@ app.get('/files', async (req, res) => {
       break
   }
   res.sendFile(name, {root: pwd, dotfiles: 'allow'})
+})
+
+app.get(`${M.MHTMLENDPOINT}/*`, async (req, res) => {
+  const result = M.ResourceCache.get(req.path)
+  if (!result) {
+    res.status(404).json({msg: 'not found'})
+    return
+  }
+  res.contentType(result.type)
+  res.send(result.content)
+})
+
+app.delete(M.MHTMLENDPOINT, async (req, res) => {
+  M.ResourceCache.clear()
+  res.status(200).json({msg: 'ok'})
 })
 
 app.listen(port, () => {
