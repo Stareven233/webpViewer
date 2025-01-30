@@ -38,11 +38,11 @@ export const getBlob = async (file: NoeFile) => {
 
 
 export const uploadFile = async (dir: string, formData: FormData) => {
-  const response = await fetch(`/upload?dir=${encodeURIComponent(dir)}`, {
+  const response = await fetch(`${prefix}/upload?dir=${encodeURIComponent(dir)}`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'multipart/form-data'
-    },
+    // headers: {
+    //   'Content-Type': 'multipart/form-data'  // 让fetch自己设置才有边界 boundry
+    // },
     body: formData,
   })
 

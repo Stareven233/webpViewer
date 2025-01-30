@@ -1,6 +1,6 @@
 {
   "name": "webp-viewer",
-  "version": "0.4.3",
+  "version": "0.5.0",
   "description": "",
   "author": "noetu",
   "type": "module",
@@ -13,9 +13,9 @@
   "keywords": [],
   "license": "MIT",
   "devDependencies": {
+    "@tailwindcss/vite": "^4.0.0",
     "@types/node": "^22.10.10",
     "tailwindcss": "^4.0.0",
-    "@tailwindcss/vite": "^4.0.0",
     "typescript": "^5.7.3",
     "vite": "^6.0.11",
     "vite-plugin-solid": "^2.11.0"

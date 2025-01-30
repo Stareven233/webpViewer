@@ -4,7 +4,7 @@ import path from 'node:path'
 import * as fs from 'node:fs/promises'
 import * as M from './htmlParser.js'
 import multer from 'multer'
-const upload = multer({ dest: 'uploads/' })
+
 
 const app = express()
 const host = 'localhost'
@@ -12,6 +12,8 @@ const host = 'localhost'
 const port = 4412
 const mountPoint = '/index'
 const appRoot = path.join(path.resolve('.'), 'dist')
+const upload = multer({ dest: 'uploads/' })
+
 
 app.get(mountPoint, (req, res) => {
   res.sendFile(path.join(appRoot, 'index.html'))
@@ -104,7 +106,9 @@ app.post('/upload', upload.single('file'), async (req, res) => {
   const dir = req.query.dir
   const filePath = path.join(dir, req.file.originalname)
   try {
-    await fs.rename(req.file.path, filePath)
+    // await fs.rename(req.file.path, filePath)
+    await fs.copyFile(req.file.path, filePath)
+    await fs.unlink(req.file.path)
     res.status(200).send({ message: 'File uploaded successfully' })
   } catch (error) {
     console.error('Error uploading file:', error)

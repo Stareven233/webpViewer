@@ -44,9 +44,9 @@ const resolveDir = async (dir: string): Promise<NoeFile[]> => {
 
 const highlightElem = (target:EventTarget&Element) => {
   if (lastTarget) {
-    lastTarget.classList.remove('bg-green-200')
+    lastTarget.classList?.remove('bg-green-200')
   }
-  target.classList.add('bg-green-200')
+  target.classList?.add('bg-green-200')
   lastTarget = target
 }
 
@@ -147,16 +147,16 @@ const Comp: Component<{hidden?: boolean}> = (props) => {
   }
 
   return (
-    <aside id='explorer' classList={{ hidden: props.hidden }} class='flex flex-col border w-[100%] mx-2 my-2 overflow-hidden'>
+    <aside id='explorer' classList={{ hidden: props.hidden }} class='flex flex-col border border-gray-200 w-[100%] mx-2 my-2 overflow-hidden'>
       <section class='flex flex-row text-lg'>
         <input
           // flex-grow 属性决定了子容器要占用父容器多少剩余空间
-          class='flex-grow border-b outline-none w-[5%] mr-2'
+          class='flex-grow border-b border-gray-200 outline-hidden w-[5%] mr-2'
           value={store.currentDir}
           onchange={inputChange}
         />
-        <button class='hover:text-green-700 px-2' onClick={e => clickItem(e.target, parentDir)}>↑</button>
-        <button class='hover:text-green-700 px-2' onClick={fileAction.refetch}>〇</button>
+        <button class='hover:text-green-700 px-2 cursor:pointer' onClick={e => clickItem(e.target, parentDir)}>↑</button>
+        <button class='hover:text-green-700 px-2 cursor:pointer' onClick={fileAction.refetch}>〇</button>
       </section>
       <section class='file-list overflow-y-scroll' ref={fileListElem}>
         <For each={files()}>{(file, i) =>

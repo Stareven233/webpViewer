@@ -1,52 +1,36 @@
 import type { Component } from 'solid-js'
-import { createSignal, createMemo } from 'solid-js'
 import neoStore from '../store.ts'
 import { uploadFile } from '../requests.ts'
+import * as MsgBox from './MessageBox.tsx'
 
-const Comp: Component<{hidden?: boolean}> = (props) => {
-  const [file, setFile] = createSignal<File | null>(null)
-  const fileInputRef = createMemo(() => document.querySelector<HTMLInputElement>('#fileInput'))
 
-  const handleFileChange = (event: Event) => {
+const Comp: Component = () => {
+  const handleFileChange = async (event: Event) => {
     const target = event.target as HTMLInputElement
-    if (target.files && target.files.length > 0) {
-      setFile(target.files[0])
+    if (!target.files || target.files.length <= 0) {
+      return
     }
-  }
-
-  const handleUpload = async () => {
-    if (file()) {
-      const dir = neoStore.store.currentDir
-      const formData = new FormData()
-      formData.append('file', file()!)
-      try {
-        await uploadFile(dir, formData)
-        setFile(null)
-        alert('File uploaded successfully!')
-      } catch (error) {
-        console.error('Error uploading file:', error)
-        alert(`Failed to upload file: ${error}`)
-      }
+    const { store } = neoStore
+    const formData = new FormData()
+    formData.append('file', target.files[0])
+    try {
+      await uploadFile(store.currentDir, formData)
+      MsgBox.popup('success', 'File uploaded successfully!', MsgBox.Type.success)
+    } catch (error) {
+      console.error('Uploading file:', error)
+      MsgBox.popup('fail', `Failed to upload file: ${error}`, MsgBox.Type.error)
     }
   }
 
   return (
-    <div classList={{ hidden: props.hidden }}>
-      <input id="fileInput" type="file" onChange={handleFileChange} />
+    <div class='fixed right-[5%] bottom-[5%] z-10 hover:cursor-pointer'>
+      <input id="fileInput" type="file" onChange={handleFileChange} hidden />
       <button
-        class="rounded-full w-10 h-10 bg-blue-500 text-white flex items-center justify-center"
-        onClick={() => fileInputRef().click()}
+        class="w-16 h-16 rounded-full bg-orange-400 text-4xl text-white flex items-center justify-center"
+        onClick={() => document.getElementById('fileInput')?.click()}
       >
         +
       </button>
-      {file() && (
-        <button
-          class="mt-2 rounded-full w-10 h-10 bg-green-500 text-white flex items-center justify-center"
-          onClick={handleUpload}
-        >
-          ⬆️
-        </button>
-      )}
     </div>
   )
 }

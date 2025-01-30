@@ -40,7 +40,7 @@ export const Comp: Component = () => {
       >
       <header class="min-[300px]:text-lg lg:text-2xl font-semibold flex flex-row justify-end">
         <span class="w-[90%] mx-auto">{title()}</span>
-        <span class="w-[5%] absolute cursor-pointer px-2 right-2 text-black" onClick={e => setHidden(true)}>x</span>
+        <span class="w-[5%] absolute cursor-pointer text-black" onClick={() => setHidden(true)}>x</span>
       </header>
       <section class="mt-4 break-all">{content()}</section>
     </div>
