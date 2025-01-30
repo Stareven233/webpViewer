@@ -94,7 +94,12 @@ export class NoeFile {
       else {pathParts.unshift(firstPart)}
     }
     // return pathParts.join('/')
-    return pathParts.filter(v => v !== '..').join('/')
+    let p = pathParts.filter(v => v !== '..').join('/')
+    if (p.endsWith(':')) {
+      // 不知为何 F: 只能读取到本项目根目录下的文件并报错
+      p += '/'
+    }
+    return p
   }
 
   public fullpath() {

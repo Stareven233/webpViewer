@@ -139,10 +139,14 @@ const Comp: Component<{hidden?: boolean}> = (props) => {
   })
 
   const inputChange = (e: any) => {
-    if (store.currentDir === e.currentTarget.value) {
+    let p = e.currentTarget.value as string
+    if (p.endsWith(':')) {
+      p = p + '/'
+    }
+    if (store.currentDir === p) {
       return
     }
-    setStore('currentDir', dir => e.currentTarget.value)
+    setStore('currentDir', dir => p)
     history.pushState({}, '', `#${store.currentDir}`)
   }
 

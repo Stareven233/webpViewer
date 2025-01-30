@@ -22,7 +22,10 @@ app.use(mountPoint, express.static(appRoot))
 
 app.get('/list', async (req, res) => {
   // console.log('req.query :>> ', req.query)
-  const pwd = req.query.dir ?? 'C:/'
+  let pwd = req.query.dir ?? 'C:/'
+  if (pwd.endsWith(':')) {
+    pwd = pwd + '/'
+  }
   try {
     const files = await fs.readdir(pwd, {withFileTypes: true})
     // fs.Dirent对象数组 https://nodejs.cn/api/fs.html#%E7%B1%BBfsdirent
@@ -37,7 +40,7 @@ app.get('/list', async (req, res) => {
         // 有些特殊文件无法读取，大小当做-1字节吧
         // {"errno": -4082, "code": "EBUSY", "syscall": "lstat", "path": "C:\\DumpStack.log.tmp" }
         fileSize = -1
-        console.warn(`fs.stat: fail at ${filePath}`)
+        console.warn(error.toString())
         continue
       }
       // console.log(file.name, stat)
