@@ -7,16 +7,17 @@ import { listDir } from '../requests.ts'
 import { NoeFile, FileType } from '../utils/format.ts'
 import * as MsgBox from './MessageBox.tsx'
 import FileUploader from './FileUploader.tsx'
+import icons from './Icon.tsx'
 
 
 const fileTypes = (obj: NoeFile) => {
   let comp: any
   if (obj.type === FileType.file) {
-    comp = <span class='text-green-500 mr-1 select-none'>F</span>
+    comp = <span class='text-green-500 h-full mr-2 select-none'>F</span>
   } else if (obj.type === FileType.directory) {
-    comp = <span class='text-orange-400 mr-1 select-none'>D</span>
+    comp = <span class='text-orange-400 h-full mr-2 select-none'>D</span>
   } else {
-    comp = <span class='text-gray-600 mr-1 select-none'>U</span>
+    comp = <span class='text-gray-600 h-full mr-2 select-none'>U</span>
   }
   return () => comp
 }
@@ -37,7 +38,7 @@ const resolveDir = async (dir: string): Promise<NoeFile[]> => {
     return
   }
   res = res.map((item: any) => new NoeFile(dir, item.name, item.mtime, item.size, item.isFile, item.isDirectory))
-  res.unshift(parentDir)
+  // res.unshift(parentDir)
   return res
 }
 
@@ -150,9 +151,19 @@ const Comp: Component<{hidden?: boolean}> = (props) => {
     history.pushState({}, '', `#${store.currentDir}`)
   }
 
+  const randomOne = () => {
+    // 不要父文件夹 ..
+    const items = Array.from(document.querySelectorAll('#explorer .file-list .file-items')).slice(1)
+    if (items.length > 0) {
+      const randomIndex = Math.floor(Math.random() * items.length)
+      const item = items[randomIndex] as HTMLElement
+      item.click()
+    }
+  }
+
   return (
     <aside id='explorer' classList={{ hidden: props.hidden }} class='flex flex-col border border-gray-200 w-[100%] mx-2 my-2 overflow-hidden'>
-      <section class='flex flex-row text-lg'>
+      <section class='flex flex-row justify-center items-center text-lg'>
         <input
           // flex-grow 属性决定了子容器要占用父容器多少剩余空间
           class='flex-grow border-b border-gray-200 outline-hidden w-[5%] mr-2'
@@ -160,12 +171,19 @@ const Comp: Component<{hidden?: boolean}> = (props) => {
           onchange={inputChange}
         />
         {/* https://icones.js.org/collection/mingcute?s=sort */}
-        <button class='hover:text-green-400 px-2 cursor-pointer text-gray-700' onClick={e => clickItem(e.target, parentDir)}><svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24"><g fill="none"><path d="M24 0v24H0V0zM12.593 23.258l-.011.002l-.071.035l-.02.004l-.014-.004l-.071-.035q-.016-.005-.024.005l-.004.01l-.017.428l.005.02l.01.013l.104.074l.015.004l.012-.004l.104-.074l.012-.016l.004-.017l-.017-.427q-.004-.016-.017-.018m.265-.113l-.013.002l-.185.093l-.01.01l-.003.011l.018.43l.005.012l.008.007l.201.093q.019.005.029-.008l.004-.014l-.034-.614q-.005-.019-.02-.022m-.715.002a.02.02 0 0 0-.027.006l-.006.014l-.034.614q.001.018.017.024l.015-.002l.201-.093l.01-.008l.004-.011l.017-.43l-.003-.012l-.01-.01z"/><path fill="currentColor" d="M6.046 11.677A7.5 7.5 0 0 1 20 15.5a1 1 0 1 0 2 0A9.5 9.5 0 0 0 4.78 9.963l-.537-3.045a1 1 0 1 0-1.97.347l1.042 5.909a1 1 0 0 0 .412.645a1.1 1.1 0 0 0 .975.125l5.68-1.001a1 1 0 1 0-.347-1.97z"/></g></svg></button>
-        <button class='hover:text-green-400 px-2 cursor-pointer text-gray-700' onClick={fileAction.refetch}><svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24"><g fill="none" fill-rule="evenodd"><path d="m12.594 23.258l-.012.002l-.071.035l-.02.004l-.014-.004l-.071-.036q-.016-.004-.024.006l-.004.01l-.017.428l.005.02l.01.013l.104.074l.015.004l.012-.004l.104-.074l.012-.016l.004-.017l-.017-.427q-.004-.016-.016-.018m.264-.113l-.014.002l-.184.093l-.01.01l-.003.011l.018.43l.005.012l.008.008l.201.092q.019.005.029-.008l.004-.014l-.034-.614q-.005-.019-.02-.022m-.715.002a.02.02 0 0 0-.027.006l-.006.014l-.034.614q.001.018.017.024l.015-.002l.201-.093l.01-.008l.003-.011l.018-.43l-.003-.012l-.01-.01z"/><path fill="currentColor" d="M14.07 19.727a8 8 0 0 1-9.146-3.99a1 1 0 0 0-1.77.933c2.13 4.04 6.836 6.221 11.434 4.99c5.335-1.43 8.5-6.914 7.071-12.248c-1.43-5.335-6.913-8.5-12.247-7.071a10 10 0 0 0-7.414 9.58c-.007.903.995 1.402 1.713.919l2.673-1.801c1.008-.68.332-2.251-.854-1.986l-1.058.236a8 8 0 1 1 9.598 10.439Z"/></g></svg></button>
+        <button class='hover:text-green-400 px-2 cursor-pointer text-gray-700' onClick={e => clickItem(e.target, parentDir)}>
+          <Dynamic component={icons('back')} />
+        </button>
+        <button class='hover:text-green-400 px-2 cursor-pointer text-gray-700' onClick={randomOne}>
+          <Dynamic component={icons('shuffle')} />
+        </button>
+        <button class='hover:text-green-400 px-2 cursor-pointer text-gray-700' onClick={fileAction.refetch}>
+          <Dynamic component={icons('refresh')} />
+        </button>
       </section>
       <section class='file-list overflow-y-scroll' ref={fileListElem}>
         <For each={files()}>{(file, i) =>
-          <p data-idx={i()} class='hover:cursor-pointer mb-0.8 whitespace-nowrap' onClick={e => clickItem(e.target, file)} title={file.name}>
+          <p data-idx={i()} class='file-items hover:cursor-pointer py-1 whitespace-nowrap' onClick={e => clickItem(e.target, file)} title={file.name}>
             <Dynamic component={fileTypes(file)} />
             {file.name}
           </p>

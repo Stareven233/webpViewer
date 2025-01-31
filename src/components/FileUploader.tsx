@@ -24,7 +24,7 @@ const Comp: Component = () => {
 
   return (
     <div 
-      class='fixed right-[5%] bottom-[5%] w-16 h-16 rounded-full bg-orange-400 text-4xl text-white flex items-center justify-center z-10 hover:cursor-pointer hover:bg-green-500'
+      class='fixed right-[5%] bottom-[5%] size-16 rounded-full bg-orange-400 text-4xl text-white flex items-center justify-center z-10 hover:cursor-pointer hover:bg-green-500'
       onClick={() => document.getElementById('fileInput')?.click()}
       >
       +
