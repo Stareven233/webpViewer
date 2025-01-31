@@ -23,7 +23,7 @@ const fileTypes = (obj: NoeFile) => {
 
 
 const { store, setStore } = neoStore
-const parentDir = new NoeFile(null, '..', -1, false, true)
+const parentDir = new NoeFile(null, '..', 0, -1, false, true)
 let lastTarget: EventTarget&Element
 let fileListElem: HTMLElement
 
@@ -36,7 +36,7 @@ const resolveDir = async (dir: string): Promise<NoeFile[]> => {
     MsgBox.popup('error', JSON.stringify(res), MsgBox.Type.error)
     return
   }
-  res = res.map((item: any) => new NoeFile(dir, item.name, item.size, item.isFile, item.isDirectory))
+  res = res.map((item: any) => new NoeFile(dir, item.name, item.mtime, item.size, item.isFile, item.isDirectory))
   res.unshift(parentDir)
   return res
 }
@@ -159,8 +159,9 @@ const Comp: Component<{hidden?: boolean}> = (props) => {
           value={store.currentDir}
           onchange={inputChange}
         />
-        <button class='hover:text-green-700 px-2 cursor:pointer' onClick={e => clickItem(e.target, parentDir)}>↑</button>
-        <button class='hover:text-green-700 px-2 cursor:pointer' onClick={fileAction.refetch}>〇</button>
+        {/* https://icones.js.org/collection/mingcute?s=sort */}
+        <button class='hover:text-green-400 px-2 cursor-pointer text-gray-700' onClick={e => clickItem(e.target, parentDir)}><svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24"><g fill="none"><path d="M24 0v24H0V0zM12.593 23.258l-.011.002l-.071.035l-.02.004l-.014-.004l-.071-.035q-.016-.005-.024.005l-.004.01l-.017.428l.005.02l.01.013l.104.074l.015.004l.012-.004l.104-.074l.012-.016l.004-.017l-.017-.427q-.004-.016-.017-.018m.265-.113l-.013.002l-.185.093l-.01.01l-.003.011l.018.43l.005.012l.008.007l.201.093q.019.005.029-.008l.004-.014l-.034-.614q-.005-.019-.02-.022m-.715.002a.02.02 0 0 0-.027.006l-.006.014l-.034.614q.001.018.017.024l.015-.002l.201-.093l.01-.008l.004-.011l.017-.43l-.003-.012l-.01-.01z"/><path fill="currentColor" d="M6.046 11.677A7.5 7.5 0 0 1 20 15.5a1 1 0 1 0 2 0A9.5 9.5 0 0 0 4.78 9.963l-.537-3.045a1 1 0 1 0-1.97.347l1.042 5.909a1 1 0 0 0 .412.645a1.1 1.1 0 0 0 .975.125l5.68-1.001a1 1 0 1 0-.347-1.97z"/></g></svg></button>
+        <button class='hover:text-green-400 px-2 cursor-pointer text-gray-700' onClick={fileAction.refetch}><svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24"><g fill="none" fill-rule="evenodd"><path d="m12.594 23.258l-.012.002l-.071.035l-.02.004l-.014-.004l-.071-.036q-.016-.004-.024.006l-.004.01l-.017.428l.005.02l.01.013l.104.074l.015.004l.012-.004l.104-.074l.012-.016l.004-.017l-.017-.427q-.004-.016-.016-.018m.264-.113l-.014.002l-.184.093l-.01.01l-.003.011l.018.43l.005.012l.008.008l.201.092q.019.005.029-.008l.004-.014l-.034-.614q-.005-.019-.02-.022m-.715.002a.02.02 0 0 0-.027.006l-.006.014l-.034.614q.001.018.017.024l.015-.002l.201-.093l.01-.008l.003-.011l.018-.43l-.003-.012l-.01-.01z"/><path fill="currentColor" d="M14.07 19.727a8 8 0 0 1-9.146-3.99a1 1 0 0 0-1.77.933c2.13 4.04 6.836 6.221 11.434 4.99c5.335-1.43 8.5-6.914 7.071-12.248c-1.43-5.335-6.913-8.5-12.247-7.071a10 10 0 0 0-7.414 9.58c-.007.903.995 1.402 1.713.919l2.673-1.801c1.008-.68.332-2.251-.854-1.986l-1.058.236a8 8 0 1 1 9.598 10.439Z"/></g></svg></button>
       </section>
       <section class='file-list overflow-y-scroll' ref={fileListElem}>
         <For each={files()}>{(file, i) =>

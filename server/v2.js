@@ -31,15 +31,16 @@ app.get('/list', async (req, res) => {
     // fs.Dirent对象数组 https://nodejs.cn/api/fs.html#%E7%B1%BBfsdirent
     const file_arr = []
     for (const file of files) {
-      let fileSize = 0
+      let fileSize = -1
+      let mtime = 0
       const filePath = path.join(pwd, file.name)
       try {
         const stat = await fs.lstat(filePath)
+        mtime = stat.mtimeMs
         fileSize = stat.size
       } catch (error) {
         // 有些特殊文件无法读取，大小当做-1字节吧
         // {"errno": -4082, "code": "EBUSY", "syscall": "lstat", "path": "C:\\DumpStack.log.tmp" }
-        fileSize = -1
         console.warn(error.toString())
         continue
       }
@@ -47,6 +48,7 @@ app.get('/list', async (req, res) => {
       file_arr.push({
         name: file.name,
         size: fileSize,
+        mtime: mtime,
         isFile: file.isFile(),
         isDirectory: file.isDirectory(),
         // isSymbolicLink: file.isSymbolicLink(),

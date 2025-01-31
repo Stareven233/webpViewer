@@ -1,4 +1,4 @@
-import { NoeFile, formatBytes, FileType } from './utils/format.ts'
+import { NoeFile, FileType } from './utils/format.ts'
 import { config } from './store.ts'
 
 
@@ -19,13 +19,14 @@ export const constructFileURL = (file: NoeFile) => {
 export const getBlob = async (file: NoeFile) => {
   let blob: Blob
 
-  if(file.type !== FileType.file && file.size<0) {
+  if(file.type !== FileType.file && file.size.value<0) {
     return new Blob(['[no file selected]'], {type: 'text/warn'})
   }
-  const size = formatBytes(file.size, config.maxFileSize.scale)
-    // 大于5MB就先不显示
+  // const size = new FileSize(file.size, config.maxFileSize.scale)
+  const size = file.size.fromScale(config.maxFileSize.scale)
+  // 大于5MB就先不显示
   if (size.value > config.maxFileSize.value) {
-    blob = new Blob([`[oversize file ${size.show()}/${config.maxFileSize.show()}]`], {type: 'text/warn'})
+    blob = new Blob([`[file oversize ${size.show()}/${config.maxFileSize.show()}]`], {type: 'text/warn'})
   } else {
     // encode以避免#%等符号出现在文件名导致的问题，express默认进行decode
     const url = constructFileURL(file)

@@ -1,20 +1,22 @@
 import { Resource } from 'solid-js'
+import _ from 'lodash'
 
 
 export class NoeFile {
   public name: string
   public dir: string
-  public size: number  // bytes
+  public mtime: Date
+  public size: FileSize
   public type: FileType
-  // public url?: () => string
   public url?: string
   public blob?: Resource<Blob>
   public blobText?: Resource<string>
 
-  constructor(dir:string='', name:string='', size:number=-1, isFile:boolean=false, isDirectory:boolean=false) {
+  constructor(dir:string='', name:string='', mtime:number=0, size:number|FileSize=-1, isFile:boolean=false, isDirectory:boolean=false) {
     this.dir = dir
     this.name = name
-    this.size = size
+    this.mtime = new Date(mtime)
+    this.size = typeof size === 'number' ? new FileSize(size) : size
     if (isFile) {
       this.type = FileType.file
     }
@@ -24,10 +26,15 @@ export class NoeFile {
   }
 
   public toString() {
-    return `
-      dir=${this.dir}\nname=${this.name}\nsize=${this.size}\ntype=${this.type}\nmime=${this.mime()}\n
-      url=${this.url}\nblob=${typeof this.blob}\nblobText=${typeof this.blobText}
-    `
+    return JSON.stringify({
+      dir: this.dir,
+      name: this.name,
+      size: this.size.show(),
+      type: this.type,
+      mtime: this.mtime.toLocaleString(),
+      mime: this.mime(),
+      url: this.url
+    }, null, 4)
   }
 
   public mime() {
@@ -107,50 +114,70 @@ export class NoeFile {
   }
 
   public update(another: NoeFile) {
-    this.name = another.name ?? this.name
-    this.dir = another.dir ?? this.dir
-    this.size = another.size ?? this.size
-    this.type = another.type ?? this.type
-    this.url = another.url ?? this.url
-    this.blob = another.blob ?? this.blob
-    this.blobText = another.blobText ?? this.blobText
+    Object.assign(this, Object.fromEntries(
+      Object.entries(another).filter(([key, value]) => value !== undefined)
+    ))
   }
 }
 
+
 export enum FileType {file, directory}
+
 
 export class FileSize {
   public value: number
   public scale: string
+  public decimals: number
+  protected static exp_base = 1024
+  protected static scale_names = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB']
 
-  constructor(value:number, scale:string) {
-    this.value = value
+  constructor(size: number, scale: string = '', decimals: number = 2) {
+    this.value = size
+    this.decimals = Math.max(decimals, 0)
+    if (size === 0) {
+      this.scale = 'B'
+      return
+    } else if (size < 0) {
+      this.scale = 'null'
+      return
+    }
+
+    let i = -1
+    if (scale === '') {
+      // 没指定就根据size自动计算
+      i = Math.floor(Math.log(this.value) / Math.log(FileSize.exp_base))
+      i = Math.min(i, FileSize.scale_names.length - 1)
+      size = parseFloat((this.value / Math.pow(FileSize.exp_base, i)).toFixed(this.decimals))
+      scale = FileSize.scale_names[i]
+    } else if (!FileSize.scale_names.includes(scale)) {
+      throw new Error(`invalid scale: ${scale}`)
+    }
+    // 直接使用给定的size跟scale
+    this.value = size
     this.scale = scale
   }
 
   public show() {
     return `${this.value}${this.scale}`
   }
-}
 
-export function formatBytes(size:number, scale='', decimals=2) {
-  // TODO 整合进FileSize，再挂给NoeFile
-  if (size === 0) {
-    return new FileSize(0, 'B')
-  } else if (size < 0) {
-    return new FileSize(-1, 'err')
+  public fromScale(scale: string) {
+    const target = _.cloneDeep(this)
+    if (target.value < 0) {
+      return target
+    }
+    const i = FileSize.scale_names.findIndex((e: string) => e === scale)
+    if (i === -1) {
+      throw new Error(`invalid scale: ${scale}`)
+    }
+    const ti = FileSize.scale_names.findIndex((e: string) => e === target.scale)
+    const diff = Math.pow(FileSize.exp_base, Math.abs(ti - i))
+    if (ti < i) {
+      target.value /= diff
+    } else {
+      target.value *= diff
+    }
+    target.scale = scale
+    return target
   }
-  const k = 1024
-  const scales = ['B', 'KB', 'MB', 'GB', 'TB', 'PB', 'EB', 'ZB', 'YB']
-  decimals = Math.max(decimals, 0)
-  // 指定的量级
-  let i = scales.findIndex((e:string) => e===scale)
-  // 没有满足的量级
-  if (i === -1) {
-    // 原本的量级
-    i = Math.floor(Math.log(size) / Math.log(k))
-    i = Math.min(i, scales.length-1)
-  }
-  size = parseFloat((size / Math.pow(k, i)).toFixed(decimals))
-  return new FileSize(size, scales[i])
 }
