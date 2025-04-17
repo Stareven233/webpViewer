@@ -13,7 +13,7 @@
 - [ ] bug: 经常定位到项目所在文件夹下 F:/t
 - [ ] textpanel: + padding, + 编辑功能
 - [ ] 临时文本上传
-- [ ] 打乱、排序
+- [x] 随机选择
 - [ ] 优化滑动翻页
 - [x] 页面标题随打开的文件夹变化
 - [ ] 优化blob读取: 预加载/缓存(blob)
@@ -22,7 +22,6 @@
 - [x] 文件上传
 - [ ] 滑动翻页
 - [ ] 支持linux，windows盘符选择 https://github.com/cristiammercado/node-disk-info, 或者由用户手动确定根目录/下面的一级目录内容
-- [ ] v2.js -> v2.go | https://github.com/gonejack/mhtml-to-html | https://github.com/pilate/pimht
 
 ## shortcut
 ### common
@@ -45,12 +44,10 @@
 3. cd webpViewer
 4. pnpm i
 5. pnpm build
-6. webpViewer.ps1
+6. go build -C server/v3
+7. webpViewer.ps1
 
 ### release
 1. download release
 2. unzip
-3. download webpViewer.ps1
-4. mv webpViewer.ps1 release/webpViewer.ps1
-5. pnpm i express
-6. webpViewer.ps1
+3. webpViewer.ps1
