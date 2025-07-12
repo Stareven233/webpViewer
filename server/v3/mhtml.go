@@ -217,6 +217,10 @@ func Parse(mhtPath string) error {
 	doc.Find("img,link,script").Each(func(i int, e *goquery.Selection) {
 		rewriteRef(e, ref_maps)
 	})
+	// 去掉<base>标签防止里面相对url被指向mhtml原网址
+	doc.Find("base").Each(func(i int, e *goquery.Selection) {
+		e.Remove()
+	})
 	txt, err := doc.Html()
 	ResourceCache[mhtPath] = Resource{"text/html", []byte(txt)}
 	return err
