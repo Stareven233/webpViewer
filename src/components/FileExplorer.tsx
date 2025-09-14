@@ -1,10 +1,11 @@
 import type { Component } from 'solid-js'
-import { createResource, For } from 'solid-js'
-import { createEffect } from 'solid-js';
+import { createResource, For, createSignal } from 'solid-js'
+import { createEffect } from 'solid-js'
 import { Dynamic } from 'solid-js/web'
 import neoStore from '../store.ts'
 import { listDir } from '../requests.ts'
 import { NoeFile, FileType } from '../utils/format.ts'
+import { SortType, sortOptions, sortFiles } from '../utils/format.ts'
 import * as MsgBox from './MessageBox.tsx'
 import FileUploader from './FileUploader.tsx'
 import icons from './Icon.tsx'
@@ -22,12 +23,10 @@ const fileTypes = (obj: NoeFile) => {
   return () => comp
 }
 
-
 const { store, setStore } = neoStore
 const parentDir = new NoeFile(null, '..', 0, -1, false, true)
 let lastTarget: EventTarget&Element
 let fileListElem: HTMLElement
-
 
 const resolveDir = async (dir: string): Promise<NoeFile[]> => {
   // console.log('dir :>> ', dir)
@@ -41,7 +40,6 @@ const resolveDir = async (dir: string): Promise<NoeFile[]> => {
   // res.unshift(parentDir)
   return res
 }
-
 
 const highlightElem = (target:EventTarget&Element) => {
   if (lastTarget) {
@@ -67,7 +65,15 @@ const clickItem = (target:EventTarget&Element, obj: NoeFile) => {
 }
 
 const Comp: Component<{hidden?: boolean}> = (props) => {
+  // Add signal for sort menu visibility
+  const [showSortMenu, setShowSortMenu] = createSignal(false)
+  // Add signal for current sort type
+  const [currentSort, setCurrentSort] = createSignal<SortType>(SortType.NAME_ASC)
   let [files, fileAction] = createResource(() => store.currentDir, resolveDir)
+  // Create sorted files resource
+  const sortedFiles = () => {
+    return sortFiles(files(), currentSort())
+  }
 
   const handleHashChange = (e: HashChangeEvent) => {
     // console.log(e)
@@ -101,10 +107,9 @@ const Comp: Component<{hidden?: boolean}> = (props) => {
   window.addEventListener('hashchange', handleHashChange, false)
   handleHashChange(new HashChangeEvent('init', { newURL: window.location.href }))
 
-
   const seekFile = (step: number) => {
     let pos = 0
-    const fileList = files()
+    const fileList = sortedFiles()
     const fileNum = fileList.length
     const direction = step > 0? 1: -1
     if(lastTarget && lastTarget.firstElementChild?.textContent==='F') {
@@ -150,19 +155,16 @@ const Comp: Component<{hidden?: boolean}> = (props) => {
     setStore('currentDir', dir => p)
     history.pushState({}, '', `#${store.currentDir}`)
   }
-
-  const randomOne = () => {
-    const items = Array.from(document.querySelectorAll('#explorer .file-list .file-items')).slice(1)
-    if (items.length > 0) {
-      const randomIndex = Math.floor(Math.random() * items.length)
-      const item = items[randomIndex] as HTMLElement
-      item.click()
-    }
+  
+  // Handle sorting
+  const handleSort = (sortType: SortType) => {
+    setCurrentSort(sortType)
+    setShowSortMenu(false)
   }
 
   return (
     <aside id='explorer' classList={{ hidden: props.hidden }} class='flex flex-col border border-gray-200 w-[100%] mx-2 my-2 overflow-hidden'>
-      <section class='flex flex-row justify-center items-center text-lg'>
+      <section class='flex flex-row justify-center items-center text-lg relative'>
         <input
           // flex-grow 属性决定了子容器要占用父容器多少剩余空间
           class='flex-grow border-b border-gray-200 outline-hidden w-[5%] mr-2'
@@ -173,15 +175,34 @@ const Comp: Component<{hidden?: boolean}> = (props) => {
         <button class='hover:text-green-400 px-2 cursor-pointer text-gray-700' onClick={e => clickItem(e.target, parentDir)}>
           <Dynamic component={icons('back')} />
         </button>
-        <button class='hover:text-green-400 px-2 cursor-pointer text-gray-700' onClick={randomOne}>
+        <button 
+          class='hover:text-green-400 px-2 cursor-pointer text-gray-700'
+          onClick={() => setShowSortMenu(!showSortMenu())}
+        >
           <Dynamic component={icons('sort')} />
         </button>
+        
+        {/* Sort dropdown menu */}
+        {showSortMenu() && (
+          <div class="absolute top-5 right-0 mt-2 w-32 bg-white rounded-md shadow-lg py-1 z-10 border border-gray-200">
+            <For each={sortOptions}>
+              {option => (
+                <button
+                  class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                  onClick={() => handleSort(option.type)}
+                >
+                  {option.label}
+                </button>
+              )}
+            </For>
+          </div>
+        )}
         <button class='hover:text-green-400 px-2 cursor-pointer text-gray-700' onClick={fileAction.refetch}>
           <Dynamic component={icons('reload')} />
         </button>
       </section>
       <section class='file-list overflow-y-scroll' ref={fileListElem}>
-        <For each={files()}>{(file, i) =>
+        <For each={sortedFiles()}>{(file, i) =>
           <p data-idx={i()} class='file-items hover:cursor-pointer py-1 whitespace-nowrap' onClick={e => clickItem(e.target, file)} title={file.name}>
             <Dynamic component={fileTypes(file)} />
             {file.name}

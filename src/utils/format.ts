@@ -181,3 +181,59 @@ export class FileSize {
     return target
   }
 }
+
+// Add enum for sorting options
+export enum SortType {
+  NAME_ASC = 'name_asc',
+  NAME_DESC = 'name_desc',
+  TIME_ASC = 'time_asc',
+  TIME_DESC = 'time_desc',
+  RANDOM = 'random'
+}
+
+export const sortOptions = [
+  { type: SortType.NAME_ASC, label: '文件名正序' },
+  { type: SortType.NAME_DESC, label: '文件名逆序' },
+  { type: SortType.TIME_ASC, label: '时间正序' },
+  { type: SortType.TIME_DESC, label: '时间逆序' },
+  { type: SortType.RANDOM, label: '随机' }
+]
+
+export const sortFiles = (files: NoeFile[], sortType: SortType): NoeFile[] => {
+  if (!files) {
+    return files
+  }
+  const sortedFiles = [...files]
+  const sortDirectoriesFirst = (compareFn: (a: NoeFile, b: NoeFile) => number): NoeFile[] => {
+    return sortedFiles.sort((a, b) => {
+      if (a.type !== b.type) {
+        // Directories first
+        return a.type === FileType.directory ? -1 : 1
+      }
+      return compareFn(a, b)
+    })
+  }
+  
+  switch (sortType) {
+    case SortType.NAME_ASC:
+      return sortDirectoriesFirst((a, b) => a.name.localeCompare(b.name))
+    case SortType.NAME_DESC:
+      return sortDirectoriesFirst((a, b) => b.name.localeCompare(a.name))
+    case SortType.TIME_ASC:
+      return sortDirectoriesFirst((a, b) => a.mtime.getTime() - b.mtime.getTime())
+    case SortType.TIME_DESC:
+      return sortDirectoriesFirst((a, b) => b.mtime.getTime() - a.mtime.getTime())
+    case SortType.RANDOM:
+      // Fisher-Yates shuffle algorithm
+      let t: NoeFile
+      for (let i = sortedFiles.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1))
+        t = sortedFiles[i]
+        sortedFiles[i] = sortedFiles[j]
+        sortedFiles[j] = t
+      }
+      return sortedFiles
+    default:
+      return sortedFiles
+  }
+}
