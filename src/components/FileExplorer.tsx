@@ -152,7 +152,6 @@ const Comp: Component<{hidden?: boolean}> = (props) => {
   }
 
   const randomOne = () => {
-    // 不要父文件夹 ..
     const items = Array.from(document.querySelectorAll('#explorer .file-list .file-items')).slice(1)
     if (items.length > 0) {
       const randomIndex = Math.floor(Math.random() * items.length)
@@ -175,10 +174,10 @@ const Comp: Component<{hidden?: boolean}> = (props) => {
           <Dynamic component={icons('back')} />
         </button>
         <button class='hover:text-green-400 px-2 cursor-pointer text-gray-700' onClick={randomOne}>
-          <Dynamic component={icons('shuffle')} />
+          <Dynamic component={icons('sort')} />
         </button>
         <button class='hover:text-green-400 px-2 cursor-pointer text-gray-700' onClick={fileAction.refetch}>
-          <Dynamic component={icons('refresh')} />
+          <Dynamic component={icons('reload')} />
         </button>
       </section>
       <section class='file-list overflow-y-scroll' ref={fileListElem}>
