@@ -12,7 +12,7 @@
 ## TODO
 - [ ] bug: 经常定位到项目所在文件夹下 F:/t
 - [x] 列出目录内容时支持按时间排序
-- [ ] 读取package.json并在命令行输出版本号
+- [x] 读取package.json并在命令行输出版本号
 - [ ] host切换功能，变更不同局域网中的ip
 - [ ] textpanel: + padding, + 编辑功能
 - [ ] 临时文本上传

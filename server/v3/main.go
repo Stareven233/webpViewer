@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
 	"io"
 	"log"
@@ -8,6 +9,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"syscall"
+	"unsafe"
 
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/static"
@@ -19,6 +22,46 @@ const (
 	mountPoint = "/index"
 	appRoot    = "./dist"
 )
+
+type AppInfo struct {
+	Name      string `json:"name"`
+	Version   string `json:"version"`
+	Author    string `json:"author"`
+	BuildTime string `json:"buildTime"`
+}
+
+func readAppInfo() AppInfo {
+	// 读取 package.json 文件
+	data, err := os.ReadFile(filepath.Join(appRoot, "version.json"))
+	if err != nil {
+		log.Fatal("Error reading package.json:", err)
+	}
+
+	// 解析 JSON 数据
+	var appinfo AppInfo
+	err = json.Unmarshal(data, &appinfo)
+	if err != nil {
+		log.Fatal("Error parsing package.json:", err)
+	}
+
+	return appinfo
+}
+
+func setConsoleTitle(title string) error {
+	// 获取kernel32.dll中的SetConsoleTitleW函数
+	kernel32 := syscall.NewLazyDLL("kernel32.dll")
+	proc := kernel32.NewProc("SetConsoleTitleW")
+
+	// 将Go字符串转换为UTF16指针
+	ptr, err := syscall.UTF16PtrFromString(title)
+	if err != nil {
+		return err
+	}
+
+	// 调用Windows API
+	proc.Call(uintptr(unsafe.Pointer(ptr)))
+	return nil
+}
 
 func main() {
 	app := fiber.New()
@@ -168,6 +211,10 @@ func main() {
 	} else {
 		realhost = host
 	}
-	log.Printf("App running at http://%s:%d%s\n", realhost, port, mountPoint)
+	appInfo := readAppInfo()
+	title := fmt.Sprintf("%s v%s", appInfo.Name, appInfo.Version)
+	setConsoleTitle(title)
+	log.Printf("%s running at http://%s:%d%s\n", title, realhost, port, mountPoint)
+
 	log.Fatal(app.Listen(fmt.Sprintf("%s:%d", host, port)))
 }
