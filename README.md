@@ -10,12 +10,13 @@
 </div>
 
 ## TODO
-- [ ] bug: 经常定位到项目所在文件夹下 F:/t
 - [x] 列出目录内容时支持按时间排序
+- [ ] 每个目录独立持有一个SortType store.currentDir
 - [x] 读取package.json并在命令行输出版本号
-- [ ] host切换功能，变更不同局域网中的ip
-- [ ] textpanel: + padding, + 编辑功能
 - [ ] 临时文本上传
+- [x] 文本内容复制
+- [x] textpanel: + padding
+- [ ] textpanel: + 编辑功能
 - [x] 随机选择
 - [ ] 优化滑动翻页
 - [x] 页面标题随打开的文件夹变化
@@ -23,7 +24,7 @@
 - [x] 支持html浏览
 - [x] 支持mhtml浏览
 - [x] 文件上传
-- [ ] 滑动翻页
+- [x] 滑动翻页
 - [ ] 支持linux，windows盘符选择 https://github.com/cristiammercado/node-disk-info, 或者由用户手动确定根目录/下面的一级目录内容
 
 ## shortcut

@@ -21,6 +21,7 @@ const (
 	port       = 4412
 	mountPoint = "/index"
 	appRoot    = "./dist"
+	bodyLimit  = 100 * 1024 * 1024 // 100MB，影响文件上传大小
 )
 
 type AppInfo struct {
@@ -64,7 +65,12 @@ func setConsoleTitle(title string) error {
 }
 
 func main() {
-	app := fiber.New()
+	appInfo := readAppInfo()
+	app := fiber.New(fiber.Config{
+		AppName:   appInfo.Name,
+		BodyLimit: bodyLimit,
+	})
+
 	// Serve static files for the mount point
 	app.Get(fmt.Sprintf("%s/*", mountPoint), static.New(appRoot))
 
@@ -211,7 +217,6 @@ func main() {
 	} else {
 		realhost = host
 	}
-	appInfo := readAppInfo()
 	title := fmt.Sprintf("%s v%s", appInfo.Name, appInfo.Version)
 	setConsoleTitle(title)
 	log.Printf("%s running at http://%s:%d%s\n", title, realhost, port, mountPoint)

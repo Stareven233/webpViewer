@@ -9,6 +9,7 @@ import { config } from '../store.ts'
 import * as requests from '../requests.ts'
 import { FileSize, NoeFile } from '../utils/format.ts'
 import TouchEvent from '../utils/touch.ts'
+import { copyFileToClipboard } from '../utils/copy.ts'
 
 
 // 超过限制的其余类型文件（text以外）不解码为文本，否则速度很慢
@@ -28,7 +29,7 @@ const ImagePanel: Component<any> = props => {
 const TextPanel: Component<any> = props => {
   return (
     <section class='overflow-y-scroll text-left justify-normal'>
-      <pre class='mx-auto break-words whitespace-pre-wrap'>{props.text}</pre>
+      <pre class='mx-4 break-words whitespace-pre-wrap'>{props.text}</pre>
     </section>
   )
 }
@@ -64,7 +65,7 @@ const showPanels = (file: NoeFile) => {
   return () => <p class='text-2xl'>该文件暂不支持浏览: {file.toString()}</p>
 }
 
-const Comp: Component<{hidden?: boolean}> = (props) => {
+const Comp: Component<{ hidden?: boolean }> = (props) => {
   const { store, setStore } = neoStore
   const maxSize = config.maxFileSize
   let panel: HTMLElement
@@ -75,7 +76,7 @@ const Comp: Component<{hidden?: boolean}> = (props) => {
   const [blob] = createResource(() => store.currentFile, requests.getBlob)
   const [blobText] = createResource(blob, async b => {
     const size = new FileSize(b.size, maxSize.scale)
-    if (!b.type.startsWith('text/') && size.value>maxSize.value) {
+    if (!b.type.startsWith('text/') && size.value > maxSize.value) {
       return `[oversize file ${size.show()}/${maxSize.show()} for blob.text()]`
     }
     return await b.text()
@@ -88,13 +89,28 @@ const Comp: Component<{hidden?: boolean}> = (props) => {
   file.blob = blob
   file.blobText = blobText
 
+  const [copyStatus, setCopyStatus] = createSignal('') // 用于显示复制状态
+  const copy2Clipboard = async (e: MouseEvent) => {
+    e.stopPropagation() // 阻止事件冒泡，避免触发 header 的 onClick
+    const state = await copyFileToClipboard(file)
+    setCopyStatus(state)
+    setTimeout(() => setCopyStatus(''), 2000)
+  }
+
   return (
     <section id='dataPanel' ref={panel} classList={{ hidden: props.hidden }} class='w-full h-full text-center' onClick={toggleHeader}>
       <Show when={hasHeader()}>
         <header class='text-sm text-grey-600 absolute top-0 py-2 px-1 w-full h-1/6 bg-rose-100' onClick={() => setHasHeader(false)}>
-          <a href={file.url} download={ file.name }>{ file.name }</a>
-          <p class='text-xs py-2'>{file.size.show()} {file.mime()}</p>
-          {/* <p class='text-xs py-2'>{Object.values(formatBytes(file.size)).join('')} {blob()?.type}</p> */}
+          <a href={file.url} download={file.name}>{file.name}</a>
+          <div class='w-full'>
+            <span class='text-xs py-2 mr-2'>{file.size.show()} {file.mime()}</span>
+            <button
+              class='ml-2 px-2 py-1 text-xs bg-green-500 text-white rounded hover:bg-green-700 transition-colors'
+              onClick={copy2Clipboard}
+            >
+              {copyStatus() || '复制'}
+            </button>
+          </div>
         </header>
       </Show>
 
