@@ -13,7 +13,7 @@
 - [x] 列出目录内容时支持按时间排序
 - [ ] 每个目录独立持有一个SortType store.currentDir
 - [x] 读取package.json并在命令行输出版本号
-- [ ] 临时文本上传
+- [x] 临时文本上传
 - [x] 文本内容复制
 - [x] textpanel: + padding
 - [ ] textpanel: + 编辑功能

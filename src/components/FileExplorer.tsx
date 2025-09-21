@@ -41,7 +41,10 @@ const resolveDir = async (dir: string): Promise<NoeFile[]> => {
   return res
 }
 
-const highlightElem = (target:EventTarget&Element) => {
+const highlightElem = (target: EventTarget&Element|null) => {
+  if (!target) {
+    return
+  }
   if (lastTarget) {
     lastTarget.classList?.remove('bg-green-200')
   }
@@ -49,7 +52,7 @@ const highlightElem = (target:EventTarget&Element) => {
   lastTarget = target
 }
 
-const clickItem = (target:EventTarget&Element, obj: NoeFile) => {
+const clickItem = (target: EventTarget&Element, obj: NoeFile) => {
   highlightElem(target)
   let path: string
   if (obj.type === FileType.directory) {
