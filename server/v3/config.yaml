@@ -4,3 +4,4 @@ mountPoint: /index
 appRoot: "."
 # 100(MB) * 1024 * 1024
 bodyLimit: 104857600
+openBrowser: true

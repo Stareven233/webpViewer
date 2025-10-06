@@ -7,7 +7,9 @@ import (
 	"log"
 	"net/url"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"syscall"
 	"unsafe"
@@ -20,11 +22,12 @@ import (
 
 // 在 const 声明之后添加配置结构体定义
 type Config struct {
-	Host       string `yaml:"host"`
-	Port       int    `yaml:"port"`
-	MountPoint string `yaml:"mountPoint"`
-	AppRoot    string `yaml:"appRoot"`
-	BodyLimit  int    `yaml:"bodyLimit"`
+	Host        string `yaml:"host"`
+	Port        int    `yaml:"port"`
+	MountPoint  string `yaml:"mountPoint"`
+	AppRoot     string `yaml:"appRoot"`
+	BodyLimit   int    `yaml:"bodyLimit"`
+	OpenBrowser bool   `yaml:"openBrowser"`
 }
 
 // 在 readAppInfo 函数之后添加读取配置的函数
@@ -92,6 +95,24 @@ func setConsoleTitle(title string) error {
 	// 调用Windows API
 	proc.Call(uintptr(unsafe.Pointer(ptr)))
 	return nil
+}
+
+func OpenEdge(url string) error {
+	var err error
+
+	switch runtime.GOOS {
+	case "windows":
+		// Windows 上 Edge 是默认浏览器，可以直接使用 start 命令
+		err = exec.Command("cmd", "/c", "start", "msedge", url).Run()
+	case "darwin": // macOS
+		err = exec.Command("open", "-a", "Microsoft Edge", url).Run()
+	case "linux":
+		err = exec.Command("microsoft-edge", url).Run()
+	default:
+		err = fmt.Errorf("unsupported platform")
+	}
+
+	return err
 }
 
 func main() {
@@ -253,6 +274,9 @@ func main() {
 	title := fmt.Sprintf("%s v%s", appInfo.Name, appInfo.Version)
 	setConsoleTitle(title)
 	log.Printf("%s running at http://%s:%d%s\n", title, realhost, config.Port, config.MountPoint)
+	if config.OpenBrowser {
+		OpenEdge(fmt.Sprintf("http://%s:%d%s", realhost, config.Port, config.MountPoint))
+	}
 
 	log.Fatal(app.Listen(fmt.Sprintf("%s:%d", config.Host, config.Port)))
 }
