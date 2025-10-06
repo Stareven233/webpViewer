@@ -29,9 +29,13 @@ export default defineConfig({
           author: pkg.author,
           buildTime: new Date().toISOString(),
         }
-        const distPath = path.resolve(__dirname, 'dist/version.json')
-        fs.writeFileSync(distPath, JSON.stringify(versionJson, null, 2))
-        console.log('\n✅ Version info written to:', distPath)
+        const distPath = path.resolve(__dirname, 'dist')
+        const distFile = (name: string) => path.join(distPath, name)
+        fs.writeFileSync(distFile('version.json'), JSON.stringify(versionJson, null, 2))
+        const serverFile = (name: string) => path.resolve(__dirname, 'server/v3', name)
+        fs.copyFileSync(serverFile('server-v3.exe'), distFile('server.exe'))
+        fs.copyFileSync(serverFile('config.yaml'), distFile('config.yaml'))
+        console.log('\n✅ Info and config written to:', distPath)
       }
     },
   ],

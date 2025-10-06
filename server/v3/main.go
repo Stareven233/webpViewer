@@ -12,17 +12,47 @@ import (
 	"syscall"
 	"unsafe"
 
+	"gopkg.in/yaml.v2"
+
 	"github.com/gofiber/fiber/v3"
 	"github.com/gofiber/fiber/v3/middleware/static"
 )
 
-const (
-	host       = "0.0.0.0"
-	port       = 4412
-	mountPoint = "/index"
-	appRoot    = "./dist"
-	bodyLimit  = 100 * 1024 * 1024 // 100MB，影响文件上传大小
-)
+// 在 const 声明之后添加配置结构体定义
+type Config struct {
+	Host       string `yaml:"host"`
+	Port       int    `yaml:"port"`
+	MountPoint string `yaml:"mountPoint"`
+	AppRoot    string `yaml:"appRoot"`
+	BodyLimit  int    `yaml:"bodyLimit"`
+}
+
+// 在 readAppInfo 函数之后添加读取配置的函数
+func readConfig() Config {
+	// 默认配置值
+	config := Config{
+		Host:       "0.0.0.0",
+		Port:       4412,
+		MountPoint: "/index",
+		AppRoot:    "./dist",
+		BodyLimit:  100 * 1024 * 1024, // 100MB
+	}
+
+	// 尝试从 config.yaml 读取配置
+	data, err := os.ReadFile("config.yaml")
+	if err != nil {
+		log.Println("Warning: config file not found, using default configuration")
+		return config
+	}
+
+	// 解析 YAML 配置
+	err = yaml.Unmarshal(data, &config)
+	if err != nil {
+		log.Fatalf("Error parsing config.yaml: %v", err)
+	}
+
+	return config
+}
 
 type AppInfo struct {
 	Name      string `json:"name"`
@@ -31,9 +61,9 @@ type AppInfo struct {
 	BuildTime string `json:"buildTime"`
 }
 
-func readAppInfo() AppInfo {
+func readAppInfo(path string) AppInfo {
 	// 读取 package.json 文件
-	data, err := os.ReadFile(filepath.Join(appRoot, "version.json"))
+	data, err := os.ReadFile(path)
 	if err != nil {
 		log.Fatal("Error reading package.json:", err)
 	}
@@ -65,14 +95,17 @@ func setConsoleTitle(title string) error {
 }
 
 func main() {
-	appInfo := readAppInfo()
+	config := readConfig()
+	infoPath := filepath.Join(config.AppRoot, "version.json")
+	appInfo := readAppInfo(infoPath)
+
 	app := fiber.New(fiber.Config{
 		AppName:   appInfo.Name,
-		BodyLimit: bodyLimit,
+		BodyLimit: config.BodyLimit,
 	})
 
 	// Serve static files for the mount point
-	app.Get(fmt.Sprintf("%s/*", mountPoint), static.New(appRoot))
+	app.Get(fmt.Sprintf("%s/*", config.MountPoint), static.New(config.AppRoot))
 
 	// List directory contents
 	app.Get("/list", func(c fiber.Ctx) error {
@@ -212,14 +245,14 @@ func main() {
 	}
 
 	// Start the server
-	if host == "0.0.0.0" {
+	if config.Host == "0.0.0.0" {
 		log.Println("Listening on 0.0.0.0")
 	} else {
-		realhost = host
+		realhost = config.Host
 	}
 	title := fmt.Sprintf("%s v%s", appInfo.Name, appInfo.Version)
 	setConsoleTitle(title)
-	log.Printf("%s running at http://%s:%d%s\n", title, realhost, port, mountPoint)
+	log.Printf("%s running at http://%s:%d%s\n", title, realhost, config.Port, config.MountPoint)
 
-	log.Fatal(app.Listen(fmt.Sprintf("%s:%d", host, port)))
+	log.Fatal(app.Listen(fmt.Sprintf("%s:%d", config.Host, config.Port)))
 }
