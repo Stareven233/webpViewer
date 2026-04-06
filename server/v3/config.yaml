@@ -2,6 +2,6 @@ host: "0.0.0.0"
 port: 23333
 mountPoint: /index
 appRoot: "."
-# 100(MB) * 1024 * 1024
-bodyLimit: 104857600
+# 1000(MB) * 1024 * 1024
+bodyLimit: 1048576000
 openBrowser: true

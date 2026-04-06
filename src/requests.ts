@@ -7,7 +7,7 @@ import { config } from './store.ts'
 const prefix = import.meta.env.DEV? '$api': ''
 
 
-export const listDir = async (dir: string) => (await fetch(`${prefix}/list?dir=${encodeURIComponent(dir)}`)).json();
+export const listDir = async (dir: string) => (await fetch(`${prefix}/list?dir=${encodeURIComponent(dir)}`)).json()
 
 
 export const constructFileURL = (file: NoeFile) => {

@@ -1,7 +1,6 @@
 import { Resource } from 'solid-js'
 import _ from 'lodash'
 
-
 export class NoeFile {
   public name: string
   public dir: string
@@ -17,11 +16,10 @@ export class NoeFile {
     this.name = name
     this.mtime = new Date(mtime)
     this.size = typeof size === 'number' ? new FileSize(size) : size
-    if (isFile) {
-      this.type = FileType.file
-    }
-    else if (isDirectory) {
+    if (isDirectory) {
       this.type = FileType.directory
+    } else {
+      this.type = FileType.file
     }
   }
 
@@ -38,7 +36,7 @@ export class NoeFile {
   }
 
   public mime() {
-    return this.blob()?.type
+    return this.blob?.()?.type
     // return this.blob()?.type.split('/')[0]
   }
 
@@ -52,7 +50,7 @@ export class NoeFile {
   // path_join = (...paths) => {
   public static path_join(...paths: string[]) {
     // console.log(paths)
-    const pathParts = []
+    const pathParts: string[] = []
     for (const p of paths) {
       if (!p) { continue }
       pathParts.push(...p.split('/'))

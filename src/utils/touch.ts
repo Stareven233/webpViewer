@@ -76,7 +76,7 @@ export default (function () {
     }
   }
  
-  function bind(dom: HTMLElement, type: string, callback: Function) {
+  function bind(dom: any, type: string, callback: Function) {
     const key = `event_${type}`
     if (!dom) {
       console.error('dom is null or undefined')
@@ -93,7 +93,7 @@ export default (function () {
     dom[key].push(callback)
   }
 
-  function remove(dom: HTMLElement, type: string, callback: Function) {
+  function remove(dom: any, type: string, callback: Function) {
     const key = `event_${type}`
     if (!dom[key]) {
       return

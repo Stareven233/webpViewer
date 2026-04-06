@@ -47,7 +47,7 @@ export const copyFileToClipboard = async (file: NoeFile): Promise<string> => {
     // 根据文件类型决定复制的内容
     if (file.blobText && typeof file.blobText() === 'string') {
       // 如果是文本内容，直接复制文本
-      contentToCopy = file.blobText()
+      contentToCopy = file.blobText() ?? ''
     } else if (file.url) {
       // 如果是文件 URL，则复制 URL
       contentToCopy = file.url

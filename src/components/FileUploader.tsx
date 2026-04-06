@@ -34,7 +34,7 @@ const Comp: Component = () => {
     }
 
     const fileName = fileNameInput.value
-    const fileExtension = fileExtensionInput.value
+    const fileExtension = fileExtensionInput?.value
     const fileContent = fileContentTextarea.value
 
     if (!fileName) {
@@ -62,6 +62,9 @@ const Comp: Component = () => {
   }
 
   const showTextModal = () => {
+    if (!fileNameInput || ! fileContentTextarea || !fileExtensionInput) {
+      return
+    }
     fileNameInput.value = `webpviewer@${formatDate()}`
     fileContentTextarea.value = ''
     fileExtensionInput.value = 'txt'

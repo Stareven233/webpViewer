@@ -29,15 +29,15 @@ const ImagePanel: Component<any> = props => {
 const TextPanel: Component<any> = props => {
   return (
     <section class='overflow-y-scroll text-left justify-normal'>
-      <pre class='mx-4 break-words whitespace-pre-wrap'>{props.text}</pre>
+      <pre class='mx-4 wrap-break-word whitespace-pre-wrap'>{props.text}</pre>
     </section>
   )
 }
 
 const HTMLPanel: Component<any> = props => {
-  let frame: HTMLIFrameElement
+  let frame: HTMLIFrameElement | undefined
   const onLoad = () => {
-    frame.contentDocument.addEventListener('click', toggleHeader)
+    frame?.contentDocument?.addEventListener('click', toggleHeader)
   }
   return <iframe ref={frame} srcdoc={props.html} height='100%' width='100%' onLoad={onLoad}></iframe>
 }
@@ -52,15 +52,15 @@ const showPanels = (file: NoeFile) => {
   // } else if (mime.startsWith('text/html')) {
   //   return () => <HTMLPanel html={file.blobText()} />
   // }
-  if (mime.startsWith('text/html')) {
+  if (!mime || mime.startsWith('text/html')) {
     // 默认.mhtml已经转换成了html
-    return () => <HTMLPanel html={file.blobText()} />
+    return () => <HTMLPanel html={file.blobText?.() ?? '[null]'} />
   }
 
   if (mime.startsWith('image/')) {
     return () => <ImagePanel url={file.url} name={file.name} />
   } else if (mime.startsWith('text/') || config.extOfText.has(file.extname().toLowerCase())) {
-    return () => <TextPanel text={file.blobText()} />
+    return () => <TextPanel text={file.blobText?.() ?? '[null]'} />
   }
   return () => <p class='text-2xl'>该文件暂不支持浏览: {file.toString()}</p>
 }
@@ -68,8 +68,11 @@ const showPanels = (file: NoeFile) => {
 const Comp: Component<{ hidden?: boolean }> = (props) => {
   const { store, setStore } = neoStore
   const maxSize = config.maxFileSize
-  let panel: HTMLElement
+  let panel: HTMLElement | undefined
   onMount(() => {
+    if (!panel) {
+      return
+    }
     TouchEvent.bind(panel, 'slideup', () => setStore('nextStep', () => -1))
     TouchEvent.bind(panel, 'slidedown', () => setStore('nextStep', () => 1))
   })

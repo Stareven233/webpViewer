@@ -24,9 +24,9 @@ const fileTypes = (obj: NoeFile) => {
 }
 
 const { store, setStore } = neoStore
-const parentDir = new NoeFile(null, '..', 0, -1, false, true)
-let lastTarget: EventTarget&Element
-let fileListElem: HTMLElement
+const parentDir = new NoeFile(undefined, '..', 0, -1, false, true)
+let lastTarget: EventTarget & Element
+let fileListElem: HTMLElement | undefined
 
 const resolveDir = async (dir: string): Promise<NoeFile[]> => {
   // console.log('dir :>> ', dir)
@@ -34,14 +34,14 @@ const resolveDir = async (dir: string): Promise<NoeFile[]> => {
   if ('errno' in res) {
     console.error('error:', res)
     MsgBox.popup('error', JSON.stringify(res), MsgBox.Type.error)
-    return
+    return []
   }
-  res = res.map((item: any) => new NoeFile(dir, item.name, item.mtime, item.size, item.isFile, item.isDirectory))
+  const ret: NoeFile[] = res.map((item: any) => new NoeFile(dir, item.name, item.mtime, item.size, item.isFile, item.isDirectory))
   // res.unshift(parentDir)
-  return res
+  return ret
 }
 
-const highlightElem = (target: EventTarget&Element|null) => {
+const highlightElem = (target: EventTarget & Element | null) => {
   if (!target) {
     return
   }
@@ -52,9 +52,9 @@ const highlightElem = (target: EventTarget&Element|null) => {
   lastTarget = target
 }
 
-const clickItem = (target: EventTarget&Element, obj: NoeFile) => {
+const clickItem = (target: EventTarget & Element, obj: NoeFile) => {
   highlightElem(target)
-  let path: string
+  let path = ''
   if (obj.type === FileType.directory) {
     setStore('currentDir', dir => NoeFile.path_join(dir, obj.name))
     path = store.currentDir
@@ -67,20 +67,20 @@ const clickItem = (target: EventTarget&Element, obj: NoeFile) => {
   history.pushState({}, '', `#${path}`)
 }
 
-const Comp: Component<{hidden?: boolean}> = (props) => {
+const Comp: Component<{ hidden?: boolean }> = (props) => {
   // Add signal for sort menu visibility
   const [showSortMenu, setShowSortMenu] = createSignal(false)
   // Add signal for current sort type
-  const [currentSort, setCurrentSort] = createSignal<SortType>(SortType.NAME_ASC)
-  let [files, fileAction] = createResource(() => store.currentDir, resolveDir)
+  const [currentSort, setCurrentSort] = createSignal<SortType>(SortType.TIME_DESC)
+  const [files, fileAction] = createResource(() => store.currentDir, resolveDir)
   // Create sorted files resource
   const sortedFiles = () => {
-    return sortFiles(files(), currentSort())
+    return sortFiles(files() ?? [], currentSort())
   }
 
   const handleHashChange = (e: HashChangeEvent) => {
     // console.log(e)
-    if (e.type!=='init' && !e.isTrusted || e.oldURL===e.newURL) {
+    if (e.type !== 'init' && !e.isTrusted || e.oldURL === e.newURL) {
       return
     }
     const hash = new URL(e.newURL).hash
@@ -88,7 +88,7 @@ const Comp: Component<{hidden?: boolean}> = (props) => {
       return
     }
     // rsplit('/', 1) + 解码
-    const [dir, filename] = hash.slice(1, ).split(/\/(?=[^\/]+$)/, 2).map(decodeURIComponent)
+    const [dir, filename] = hash.slice(1,).split(/\/(?=[^\/]+$)/, 2).map(decodeURIComponent)
     setStore('currentDir', () => dir)
     // const files = await resolveDir(dir)
     const intervalId = setInterval(() => {
@@ -96,14 +96,16 @@ const Comp: Component<{hidden?: boolean}> = (props) => {
         return
       }
       clearInterval(intervalId)
-      for (const f of files()) {
+      for (const f of files() ?? []) {
         if (f.name !== filename) {
           continue
         }
         setStore('currentFile', () => f)
       }
       // 定位高亮
-      highlightElem(fileListElem.querySelector(`p[title='${filename}']`))
+      if (fileListElem) {
+        highlightElem(fileListElem.querySelector(`p[title='${filename}']`))
+      }
     }, 300)
   }
   // window.onhashchange = handleHashChange
@@ -114,13 +116,13 @@ const Comp: Component<{hidden?: boolean}> = (props) => {
     let pos = 0
     const fileList = sortedFiles()
     const fileNum = fileList.length
-    const direction = step > 0? 1: -1
-    if(lastTarget && lastTarget.firstElementChild?.textContent==='F') {
-      pos = parseInt((lastTarget as HTMLElement).dataset.idx) + step
+    const direction = step > 0 ? 1 : -1
+    if (lastTarget && lastTarget.firstElementChild?.textContent === 'F') {
+      pos = parseInt((lastTarget as HTMLElement).dataset.idx!) + step
     }
     pos = Math.max(0, pos) % fileNum
     const lastPos = pos
-  
+
     // 跳过目录，只显示文件
     while (fileList[pos].type !== FileType.file) {
       pos = (pos + direction + fileNum) % fileNum
@@ -131,7 +133,7 @@ const Comp: Component<{hidden?: boolean}> = (props) => {
     }
     clickItem(
       // document.querySelector(`#explorer .file-list p[data-idx='${pos}']`),
-      fileListElem.querySelector(`p[data-idx='${pos}']`),
+      fileListElem!.querySelector(`p[data-idx='${pos}']`)!,
       fileList[pos]
     )
   }
@@ -158,7 +160,7 @@ const Comp: Component<{hidden?: boolean}> = (props) => {
     setStore('currentDir', dir => p)
     history.pushState({}, '', `#${store.currentDir}`)
   }
-  
+
   // Handle sorting
   const handleSort = (sortType: SortType) => {
     setCurrentSort(sortType)
@@ -166,11 +168,11 @@ const Comp: Component<{hidden?: boolean}> = (props) => {
   }
 
   return (
-    <aside id='explorer' classList={{ hidden: props.hidden }} class='flex flex-col border border-gray-200 w-[100%] mx-2 my-2 overflow-hidden'>
+    <aside id='explorer' classList={{ hidden: props.hidden }} class='flex flex-col border border-gray-200 w-full mx-2 my-2 overflow-hidden'>
       <section class='flex flex-row justify-center items-center text-lg relative'>
         <input
           // flex-grow 属性决定了子容器要占用父容器多少剩余空间
-          class='flex-grow border-b border-gray-200 outline-hidden w-[5%] mr-2'
+          class='grow border-b border-gray-200 outline-hidden w-[5%] mr-2'
           value={store.currentDir}
           onchange={inputChange}
         />
@@ -178,13 +180,13 @@ const Comp: Component<{hidden?: boolean}> = (props) => {
         <button class='hover:text-green-400 px-2 cursor-pointer text-gray-700' onClick={e => clickItem(e.target, parentDir)}>
           <Dynamic component={icons('back')} />
         </button>
-        <button 
+        <button
           class='hover:text-green-400 px-2 cursor-pointer text-gray-700'
           onClick={() => setShowSortMenu(!showSortMenu())}
         >
           <Dynamic component={icons('sort')} />
         </button>
-        
+
         {/* Sort dropdown menu */}
         {showSortMenu() && (
           <div class="absolute top-5 right-0 mt-2 w-32 bg-white rounded-md shadow-lg py-1 z-10 border border-gray-200">

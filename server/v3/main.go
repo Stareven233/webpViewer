@@ -145,8 +145,9 @@ func main() {
 
 		var fileArr []map[string]any
 		for _, file := range files {
-			filePath := filepath.Join(pwd, file.Name())
-			stat, err := os.Lstat(filePath)
+			// filePath := filepath.Join(pwd, file.Name())
+			// stat, err := os.Lstat(filePath)
+			stat, err := file.Info()
 			if err != nil {
 				log.Printf("Error reading file stats: %v", err)
 				continue

@@ -11,7 +11,7 @@ import neoStore from './store.ts'
 
 const [viewID, setviewID] = createSignal(0)
 const mainComps = [FileExplorer, DataPanel]
-let mainPanel: HTMLElement
+let mainPanel: HTMLElement | undefined
 
 const viewNext = () => setviewID(prev => Math.min(prev+1, mainComps.length-1))
 const viewPrev = () => setviewID(prev => Math.max(prev-1, 0))

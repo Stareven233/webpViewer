@@ -9,7 +9,7 @@ export enum Type {
   success, info, warn, error
 }
 
-const bgColors = {
+const bgColors: {[key: number]: string} = {
   [Type.success]: 'bg-green-100',
   [Type.info]: 'bg-blue-100',
   [Type.warn]: 'bg-orange-100',
@@ -18,7 +18,7 @@ const bgColors = {
 
 export const popup = (title:string, content:string, type:Type) => {
   const box = (document.querySelector('#msg-box') as HTMLElement)
-  const lastType = parseInt(box.dataset.type)
+  const lastType = parseInt(box.dataset.type ?? '-1')
   if (lastType > -1) {
     box.classList.remove(bgColors[lastType])
   }
@@ -35,7 +35,7 @@ export const Comp: Component = () => {
   return (
     <div 
       id='msg-box' data-type="-1"
-      class="fixed min-[300px]:top-[20%] min-[300px]:left-[20%] min-[300px]:w-[60%] top-[40%] lg:left-[40%] lg:w-[20%] lg:h-[20%] text-center p-4 border-1 z-10 border-gray-200 rounded text-gray-700 shadow-lg"
+      class="fixed min-[300px]:top-[20%] min-[300px]:left-[20%] min-[300px]:w-[60%] top-[40%] lg:left-[40%] lg:w-[20%] lg:h-[20%] text-center p-4 border z-10 border-gray-200 rounded text-gray-700 shadow-lg"
       classList={{hidden: hidden()}}
       >
       <header class="min-[300px]:text-lg lg:text-2xl font-semibold flex flex-row justify-end">

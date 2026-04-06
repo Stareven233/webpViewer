@@ -1,12 +1,14 @@
-import fs from 'fs'
-import path from 'path'
+import fs from 'node:fs/promises'
+import { execFile } from 'node:child_process'
+import { promisify } from 'node:util'
+import path from 'node:path'
 import { defineConfig } from 'vite'
 import solidPlugin from 'vite-plugin-solid'
 import tailwindcss from '@tailwindcss/vite'
 
-const pkg = JSON.parse(fs.readFileSync(path.resolve(__dirname, 'package.json'), 'utf8'))
+const execFilePromise = promisify(execFile)
 
-const newProxyItem = ([key, target]) => ({
+const newProxyItem = ([key, target]: string[]) => ({
   // 匹配 */$key/**
   [`/\$${key}`]: {
     target,
@@ -18,11 +20,12 @@ const newProxyItem = ([key, target]) => ({
 export default defineConfig({
   base: '/index',
   plugins: [
-    solidPlugin(), 
+    solidPlugin(),
     tailwindcss(),
     {
       name: 'inject-version',
-      closeBundle() {
+      async closeBundle() {
+        const pkg = JSON.parse(await fs.readFile(path.resolve(__dirname, 'package.json'), 'utf8'))
         const versionJson = {
           name: pkg.name,
           version: pkg.version,
@@ -31,18 +34,21 @@ export default defineConfig({
         }
         const distPath = path.resolve(__dirname, 'dist')
         const distFile = (name: string) => path.join(distPath, name)
-        fs.writeFileSync(distFile('version.json'), JSON.stringify(versionJson, null, 2))
+        await fs.writeFile(distFile('version.json'), JSON.stringify(versionJson, null, 2))
+        console.log('building server...')
+        await execFilePromise('go', ['build', '.'], { cwd: './server/v3', })
+        console.log('copying files...')
         const serverFile = (name: string) => path.resolve(__dirname, 'server/v3', name)
-        fs.copyFileSync(serverFile('server-v3.exe'), distFile('server.exe'))
-        fs.copyFileSync(serverFile('config.yaml'), distFile('config.yaml'))
+        await fs.copyFile(serverFile('server-v3.exe'), distFile('server.exe'))
+        await fs.copyFile(serverFile('config.yaml'), distFile('config.yaml'))
         console.log('\n✅ Info and config written to:', distPath)
       }
     },
   ],
   build: {
     target: 'esnext',
-  },  
-  server:{
+  },
+  server: {
     host: true,
     port: 6628,
     cors: true,
