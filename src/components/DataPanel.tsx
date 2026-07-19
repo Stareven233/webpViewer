@@ -104,7 +104,7 @@ const Comp: Component<{ hidden?: boolean }> = (props) => {
     <section id='dataPanel' ref={panel} classList={{ hidden: props.hidden }} class='w-full h-full text-center' onClick={toggleHeader}>
       <Show when={hasHeader()}>
         <header class='text-sm text-grey-600 absolute top-0 py-2 px-1 w-full h-1/6 bg-rose-100' onClick={() => setHasHeader(false)}>
-          <a href={file.url} download={file.name}>{file.name}</a>
+          <a href={requests.constructDownloadURL(file)} download={file.name}>{file.name}</a>
           <div class='w-full'>
             <span class='text-xs py-2 mr-2'>{file.size.show()} {file.mime()}</span>
             <button

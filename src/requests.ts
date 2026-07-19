@@ -15,6 +15,11 @@ export const constructFileURL = (file: NoeFile) => {
   return url
 }
 
+export const constructDownloadURL = (file: NoeFile) => {
+  const url = `${constructFileURL(file)}&download=1`
+  return url
+}
+
 // export const getFile = async (path: string) => await fetch(`${prefix}/pwd/${path}`)
 export const getBlob = async (file: NoeFile) => {
   let blob: Blob

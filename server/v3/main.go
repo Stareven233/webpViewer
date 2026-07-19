@@ -177,6 +177,17 @@ func main() {
 		}
 
 		filePath := filepath.Join(pwd, name)
+		if c.Query("download") != "" {
+			c.Attachment(name)
+			if !strings.Contains(filePath, "#") {
+				return c.SendFile(filePath)
+			}
+			content, err := os.ReadFile(filePath)
+			if err != nil {
+				return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
+			}
+			return c.Send(content)
+		}
 		ext := filepath.Ext(name)
 
 		switch ext {
