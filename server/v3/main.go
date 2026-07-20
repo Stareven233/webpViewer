@@ -115,6 +115,50 @@ func OpenEdge(url string) error {
 	return err
 }
 
+
+// listComputerRoot returns top-level selectable roots.
+// On Windows this is available drive letters (C:/, D:/, ...);
+// on Unix-like systems it is the filesystem root "/".
+func listComputerRoot() []map[string]any {
+	// Always return a non-nil slice so JSON is [] not null.
+	drives := make([]map[string]any, 0)
+
+	if runtime.GOOS == "windows" {
+		// GetLogicalDrives avoids Stat-blocking on empty floppy/optical drives.
+		kernel32 := syscall.NewLazyDLL("kernel32.dll")
+		proc := kernel32.NewProc("GetLogicalDrives")
+		ret, _, callErr := proc.Call()
+		if ret == 0 {
+			log.Printf("GetLogicalDrives failed: %v", callErr)
+			return drives
+		}
+		mask := uint32(ret)
+		for i := 0; i < 26; i++ {
+			if mask&(1<<uint(i)) == 0 {
+				continue
+			}
+			letter := string(rune('A' + i))
+			drives = append(drives, map[string]any{
+				"name":        letter + ":",
+				"size":        int64(-1),
+				"mtime":       int64(0),
+				"isFile":      false,
+				"isDirectory": true,
+			})
+		}
+		return drives
+	}
+
+	// Unix-like: computer root surfaces "/" as a single entry.
+	return append(drives, map[string]any{
+		"name":        "/",
+		"size":        int64(-1),
+		"mtime":       int64(0),
+		"isFile":      false,
+		"isDirectory": true,
+	})
+}
+
 func main() {
 	config := readConfig()
 	infoPath := filepath.Join(config.AppRoot, "version.json")
@@ -128,11 +172,19 @@ func main() {
 	// Serve static files for the mount point
 	app.Get(fmt.Sprintf("%s/*", config.MountPoint), static.New(config.AppRoot))
 
-	// List directory contents
+	// List directory contents.
+	// Empty dir means "computer root": Windows returns available drive letters;
+	// Unix-like systems return filesystem root "/".
 	app.Get("/list", func(c fiber.Ctx) error {
+		// Fiber treats missing and empty query the same; clients send dir= for computer root.
+		rawQuery := string(c.Request().URI().QueryString())
+		hasDirParam := strings.Contains(rawQuery, "dir=")
 		pwd := c.Query("dir")
-		if pwd == "" {
+		if !hasDirParam && pwd == "" {
 			pwd = "C:/"
+		}
+		if hasDirParam && pwd == "" {
+			return c.JSON(listComputerRoot())
 		}
 		if strings.HasSuffix(pwd, ":") {
 			pwd += "/"

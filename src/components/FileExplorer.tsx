@@ -24,7 +24,6 @@ const fileTypes = (obj: NoeFile) => {
 }
 
 const { store, setStore } = neoStore
-const parentDir = new NoeFile(undefined, '..', 0, -1, false, true)
 let lastTarget: EventTarget & Element
 let fileListElem: HTMLElement | undefined
 
@@ -56,15 +55,33 @@ const clickItem = (target: EventTarget & Element, obj: NoeFile) => {
   highlightElem(target)
   let path = ''
   if (obj.type === FileType.directory) {
-    setStore('currentDir', dir => NoeFile.path_join(dir, obj.name))
-    path = store.currentDir
+    // From computer root, drive names are "C:" / "/" — treat as absolute roots.
+    if (NoeFile.isComputerRoot(store.currentDir)) {
+      const next = NoeFile.isUnixRoot(obj.name) ? '/' : (obj.name.endsWith(':') ? obj.name + '/' : obj.name + '/')
+      setStore('currentDir', () => next)
+      path = next
+    } else {
+      setStore('currentDir', dir => NoeFile.path_join(dir, obj.name))
+      path = store.currentDir
+    }
   } else if (obj.type === FileType.file) {
     setStore('currentFile', () => obj)
     path = NoeFile.path_join(store.currentDir, obj.name)
   }
   // window.location.href = `#${hash}` 会触发hashchange事件，pushState不会
-  document.title = NoeFile.path_join(...path.split('/').slice(-2,))
-  history.pushState({}, '', `#${path}`)
+  const titleParts = path ? path.split('/').filter(Boolean).slice(-2) : ['此电脑']
+  document.title = titleParts.length ? titleParts.join('/') : '此电脑'
+  history.pushState({}, '', path ? `#${path}` : '#')
+}
+
+const goParent = () => {
+  if (NoeFile.isComputerRoot(store.currentDir)) {
+    return
+  }
+  const parent = NoeFile.parent_of(store.currentDir)
+  setStore('currentDir', () => parent)
+  document.title = parent ? parent.split('/').filter(Boolean).slice(-2).join('/') || parent : '此电脑'
+  history.pushState({}, '', parent ? `#${parent}` : '#')
 }
 
 const Comp: Component<{ hidden?: boolean }> = (props) => {
@@ -72,7 +89,8 @@ const Comp: Component<{ hidden?: boolean }> = (props) => {
   const [showSortMenu, setShowSortMenu] = createSignal(false)
   // Add signal for current sort type
   const [currentSort, setCurrentSort] = createSignal<SortType>(SortType.TIME_DESC)
-  const [files, fileAction] = createResource(() => store.currentDir, resolveDir)
+  // Solid treats empty-string source as "no fetch"; wrap so computer root ('') still loads.
+  const [files, fileAction] = createResource(() => [store.currentDir] as const, ([dir]) => resolveDir(dir))
   // Create sorted files resource
   const sortedFiles = () => {
     return sortFiles(files() ?? [], currentSort())
@@ -84,11 +102,23 @@ const Comp: Component<{ hidden?: boolean }> = (props) => {
       return
     }
     const hash = new URL(e.newURL).hash
+    // no hash keeps the store default (e.g. C:/); bare "#" is computer root
     if (!hash) {
       return
     }
-    // rsplit('/', 1) + 解码
-    const [dir, filename] = hash.slice(1,).split(/\/(?=[^\/]+$)/, 2).map(decodeURIComponent)
+    const raw = hash.slice(1)
+    if (!raw) {
+      setStore('currentDir', () => NoeFile.COMPUTER_ROOT)
+      return
+    }
+    // rsplit('/', 1) + 解码. Keep unix "/home" from collapsing to computer root:
+    // parent of "/home" is "/" (not "").
+    let [dir, filename] = raw.split(/\/(?=[^\/]+$)/, 2).map(decodeURIComponent)
+    if (dir === '' && raw.startsWith('/')) {
+      dir = '/'
+    } else if (/^[A-Za-z]:$/.test(dir)) {
+      dir = dir + '/'
+    }
     setStore('currentDir', () => dir)
     // const files = await resolveDir(dir)
     const intervalId = setInterval(() => {
@@ -151,14 +181,16 @@ const Comp: Component<{ hidden?: boolean }> = (props) => {
 
   const inputChange = (e: any) => {
     let p = e.currentTarget.value as string
-    if (p.endsWith(':')) {
+    if (p === '此电脑' || p === 'Computer' || p === '') {
+      p = NoeFile.COMPUTER_ROOT
+    } else if (p.endsWith(':')) {
       p = p + '/'
     }
     if (store.currentDir === p) {
       return
     }
-    setStore('currentDir', dir => p)
-    history.pushState({}, '', `#${store.currentDir}`)
+    setStore('currentDir', () => p)
+    history.pushState({}, '', p ? `#${p}` : '#')
   }
 
   // Handle sorting
@@ -173,11 +205,11 @@ const Comp: Component<{ hidden?: boolean }> = (props) => {
         <input
           // flex-grow 属性决定了子容器要占用父容器多少剩余空间
           class='grow border-b border-gray-200 outline-hidden w-[5%] mr-2'
-          value={store.currentDir}
+          value={NoeFile.isComputerRoot(store.currentDir) ? '此电脑' : store.currentDir}
           onchange={inputChange}
         />
         {/* https://icones.js.org/collection/mingcute?s=sort */}
-        <button class='hover:text-green-400 px-2 cursor-pointer text-gray-700' onClick={e => clickItem(e.target, parentDir)}>
+        <button class='hover:text-green-400 px-2 cursor-pointer text-gray-700' onClick={() => goParent()}>
           <Dynamic component={icons('back')} />
         </button>
         <button

@@ -47,64 +47,88 @@ export class NoeFile {
     return this.name.split(/\.(?=[^\.]+?$)/, 2)[1]
   }
 
+  /** Computer-root sentinel: above all drive roots on Windows, or above "/" on Unix. */
+  public static readonly COMPUTER_ROOT = ''
+
+  public static isComputerRoot(dir: string) {
+    return dir === NoeFile.COMPUTER_ROOT
+  }
+
+  /** True for Windows drive roots like "C:/" or "D:". */
+  public static isDriveRoot(dir: string) {
+    return /^[A-Za-z]:\/?$/.test(dir)
+  }
+
+  /** True for Unix filesystem root "/". */
+  public static isUnixRoot(dir: string) {
+    return dir === '/'
+  }
+
+  /** Parent of dir; drive root / unix root go to computer root. */
+  public static parent_of(dir: string) {
+    if (NoeFile.isComputerRoot(dir) || NoeFile.isDriveRoot(dir) || NoeFile.isUnixRoot(dir)) {
+      return NoeFile.COMPUTER_ROOT
+    }
+    return NoeFile.path_join(dir, '..')
+  }
+
   // path_join = (...paths) => {
   public static path_join(...paths: string[]) {
-    // console.log(paths)
-    const pathParts: string[] = []
-    for (const p of paths) {
-      if (!p) { continue }
-      pathParts.push(...p.split('/'))
-      // pathParts.push.apply(pathParts, p.split('/'))
+    // Single empty argument is the computer-root sentinel.
+    if (paths.length === 1 && paths[0] === NoeFile.COMPUTER_ROOT) {
+      return NoeFile.COMPUTER_ROOT
     }
-    const [firstPart, ...restParts] = pathParts.filter(v => !!v)
-    pathParts.splice(0, pathParts.length)
 
-    // 先不管开头部分
-    restParts.forEach(p => {
-      if (p === '.') {
-        null
+    // Flatten path segments, preserving a leading empty marker for absolute unix paths.
+    const segments: string[] = []
+    let unixAbsolute = false
+    for (const raw of paths) {
+      if (raw === undefined || raw === null) continue
+      if (raw === NoeFile.COMPUTER_ROOT) continue
+      if (raw.startsWith('/')) unixAbsolute = true
+      for (const part of raw.split('/')) {
+        if (part === '') continue
+        segments.push(part)
       }
-      else if (p === '..') {
-        const last = pathParts.at(-1)
-        // 说明到头了，没有上一级咯
-        if (!last || last === '..') {
-          pathParts.push('..')
-        }
-        else {
-          pathParts.pop()
-          pathParts.push(...last.split('/').slice(0, -1))
-        }
-      }
-      // else if (/^[^\\\/:*?'<>|]+$/.test(p)) {
-      else {
-        pathParts.push(p)
-      }
-    })
+    }
 
-    // windows开头是盘符
-    if (/^[A-Za-z]:$/.test(firstPart)) {
-      pathParts.unshift(firstPart)
+    const stack: string[] = []
+    let aboveRoot = false
+    for (const part of segments) {
+      if (part === '.') continue
+      if (part === '..') {
+        if (stack.length > 0) {
+          stack.pop()
+        } else {
+          // Above a windows drive root or bare relative path.
+          aboveRoot = true
+        }
+        continue
+      }
+      aboveRoot = false
+      stack.push(part)
     }
-    // linux: /dir/xx
-    else if (firstPart === '') {
-      if (pathParts.length === 0) {pathParts.push('/')}
-      // 还有元素放''等着后面join加/即可
-      else {pathParts.unshift('')}
+
+    // path_join('C:/', '..') / path_join('/', '..') -> computer root
+    if (stack.length === 0) {
+      if (aboveRoot) return NoeFile.COMPUTER_ROOT
+      if (unixAbsolute) return '/'
+      // path_join('C:') alone collapses to drive root below
+      return NoeFile.COMPUTER_ROOT
     }
-    // path part: dir/xx
-    else {
-      // 特殊考虑此时 .. 还处理不完，那么firstPart被消耗
-      if (pathParts[0] === '..') {pathParts.shift()}
-      // new_paths长度不管是不是0都在开头加上firstPart
-      else {pathParts.unshift(firstPart)}
+
+    // If the only remaining segment is a drive letter and we popped above it earlier,
+    // aboveRoot already returned. Otherwise format drive / unix / relative.
+    if (/^[A-Za-z]:$/.test(stack[0])) {
+      // e.g. ['C:'] or ['C:', 'Users']
+      if (stack.length === 1) return stack[0] + '/'
+      return stack[0] + '/' + stack.slice(1).join('/')
     }
-    // return pathParts.join('/')
-    let p = pathParts.filter(v => v !== '..').join('/')
-    if (p.endsWith(':')) {
-      // 不知为何 F: 只能读取到本项目根目录下的文件并报错
-      p += '/'
+
+    if (unixAbsolute) {
+      return '/' + stack.join('/')
     }
-    return p
+    return stack.join('/')
   }
 
   public fullpath() {

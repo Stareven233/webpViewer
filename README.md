@@ -28,7 +28,7 @@
 - [x] 支持mhtml浏览
 - [x] 文件上传
 - [x] 滑动翻页
-- [ ] 支持linux，windows盘符选择 https://github.com/cristiammercado/node-disk-info, 或者由用户手动确定根目录/下面的一级目录内容
+- [x] 支持linux，windows盘符选择（上一级到尽头进入 Computer 根，列出盘符 / `/`）
 
 ## shortcut
 ### common
