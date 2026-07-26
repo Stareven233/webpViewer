@@ -1,8 +1,9 @@
 import type { Component } from 'solid-js'
-import { createResource, For, createSignal } from 'solid-js'
-import { createEffect } from 'solid-js'
+import { createResource, For, Show, createSignal } from 'solid-js'
+import { createEffect, onCleanup } from 'solid-js'
 import { Dynamic } from 'solid-js/web'
 import neoStore from '../store.ts'
+import favStore from '../utils/favorites.ts'
 import { listDir } from '../requests.ts'
 import { NoeFile, FileType } from '../utils/format.ts'
 import { SortType, sortOptions, sortFiles } from '../utils/format.ts'
@@ -24,8 +25,12 @@ const fileTypes = (obj: NoeFile) => {
 }
 
 const { store, setStore } = neoStore
-let lastTarget: EventTarget & Element
-let fileListElem: HTMLElement | undefined
+const { favorites, isFavorite, toggleFavorite, removeFavorite } = favStore
+// 当前选中项在排序后列表中的下标，-1 表示未选中。
+// 用 signal 声明式高亮，替代直接操作 DOM classList
+const [selectedIdx, setSelectedIdx] = createSignal(-1)
+
+const COMPUTER_LABEL = '此电脑'
 
 const resolveDir = async (dir: string): Promise<NoeFile[]> => {
   // console.log('dir :>> ', dir)
@@ -40,53 +45,79 @@ const resolveDir = async (dir: string): Promise<NoeFile[]> => {
   return ret
 }
 
-const highlightElem = (target: EventTarget & Element | null) => {
-  if (!target) {
-    return
-  }
-  if (lastTarget) {
-    lastTarget.classList?.remove('bg-green-200')
-  }
-  target.classList?.add('bg-green-200')
-  lastTarget = target
+/** 标题取路径末两段，方便在浏览器标签页上辨认 */
+const titleOf = (path: string) => {
+  const parts = path.split('/').filter(Boolean).slice(-2)
+  return parts.length ? parts.join('/') : COMPUTER_LABEL
 }
 
-const clickItem = (target: EventTarget & Element, obj: NoeFile) => {
-  highlightElem(target)
-  let path = ''
+/**
+ * 统一的路由跳转出口：写 store、改标题、推历史记录。
+ * 目录跳转（面包屑/收藏/上一级/输入框）与文件打开都走这里，避免三处重复逻辑各自漂移。
+ * window.location.href = `#${hash}` 会触发hashchange事件，pushState不会
+ */
+const navigateTo = (path: string, opts: { isFile?: boolean } = {}) => {
+  if (!opts.isFile) {
+    setStore('currentDir', () => path)
+    // 换目录后旧的选中下标已失效
+    setSelectedIdx(-1)
+  }
+  document.title = titleOf(path)
+  history.pushState({}, '', path ? `#${path}` : '#')
+}
+
+const clickItem = (obj: NoeFile, idx: number) => {
   if (obj.type === FileType.directory) {
     // From computer root, drive names are "C:" / "/" — treat as absolute roots.
     if (NoeFile.isComputerRoot(store.currentDir)) {
-      const next = NoeFile.isUnixRoot(obj.name) ? '/' : (obj.name.endsWith(':') ? obj.name + '/' : obj.name + '/')
-      setStore('currentDir', () => next)
-      path = next
+      const next = NoeFile.isUnixRoot(obj.name) ? '/' : obj.name + '/'
+      navigateTo(next)
     } else {
-      setStore('currentDir', dir => NoeFile.path_join(dir, obj.name))
-      path = store.currentDir
+      navigateTo(NoeFile.path_join(store.currentDir, obj.name))
     }
-  } else if (obj.type === FileType.file) {
-    setStore('currentFile', () => obj)
-    path = NoeFile.path_join(store.currentDir, obj.name)
+    return
   }
-  // window.location.href = `#${hash}` 会触发hashchange事件，pushState不会
-  const titleParts = path ? path.split('/').filter(Boolean).slice(-2) : ['此电脑']
-  document.title = titleParts.length ? titleParts.join('/') : '此电脑'
-  history.pushState({}, '', path ? `#${path}` : '#')
+  if (obj.type === FileType.file) {
+    setStore('currentFile', () => obj)
+    setSelectedIdx(idx)
+    navigateTo(NoeFile.path_join(store.currentDir, obj.name), { isFile: true })
+  }
 }
 
 const goParent = () => {
   if (NoeFile.isComputerRoot(store.currentDir)) {
     return
   }
-  const parent = NoeFile.parent_of(store.currentDir)
-  setStore('currentDir', () => parent)
-  document.title = parent ? parent.split('/').filter(Boolean).slice(-2).join('/') || parent : '此电脑'
-  history.pushState({}, '', parent ? `#${parent}` : '#')
+  navigateTo(NoeFile.parent_of(store.currentDir))
+}
+
+/**
+ * 把当前目录拆成可点击的面包屑分段。
+ * 首段固定为「此电脑」（COMPUTER_ROOT）；unix 绝对路径的根 "/" 需单独成段，
+ * 否则会被 split('/') 吃掉，导致无法点回根目录。
+ */
+const breadcrumbs = (dir: string) => {
+  const crumbs = [{ label: COMPUTER_LABEL, path: NoeFile.COMPUTER_ROOT }]
+  if (NoeFile.isComputerRoot(dir)) {
+    return crumbs
+  }
+  if (dir.startsWith('/')) {
+    crumbs.push({ label: '/', path: '/' })
+  }
+  let acc = dir.startsWith('/') ? '/' : ''
+  for (const part of dir.split('/').filter(Boolean)) {
+    // 用 path_join 拼接，盘符 "C:" -> "C:/" 等规则已在其中处理
+    acc = NoeFile.path_join(acc, part)
+    crumbs.push({ label: part, path: acc })
+  }
+  return crumbs
 }
 
 const Comp: Component<{ hidden?: boolean }> = (props) => {
   // Add signal for sort menu visibility
   const [showSortMenu, setShowSortMenu] = createSignal(false)
+  // 收藏下拉菜单
+  const [showFavMenu, setShowFavMenu] = createSignal(false)
   // Add signal for current sort type
   const [currentSort, setCurrentSort] = createSignal<SortType>(SortType.TIME_DESC)
   // Solid treats empty-string source as "no fetch"; wrap so computer root ('') still loads.
@@ -95,6 +126,18 @@ const Comp: Component<{ hidden?: boolean }> = (props) => {
   const sortedFiles = () => {
     return sortFiles(files() ?? [], currentSort())
   }
+  // 两个下拉菜单互斥，否则会重叠
+  const openSortMenu = (open: boolean) => {
+    setShowSortMenu(open)
+    if (open) setShowFavMenu(false)
+  }
+  const openFavMenu = (open: boolean) => {
+    setShowFavMenu(open)
+    if (open) setShowSortMenu(false)
+  }
+
+  // hash 中待定位的文件名，由 handleHashChange 写入，等目录加载完再消费
+  const [pendingFile, setPendingFile] = createSignal<string>('')
 
   const handleHashChange = (e: HashChangeEvent) => {
     // console.log(e)
@@ -120,37 +163,41 @@ const Comp: Component<{ hidden?: boolean }> = (props) => {
       dir = dir + '/'
     }
     setStore('currentDir', () => dir)
-    // const files = await resolveDir(dir)
-    const intervalId = setInterval(() => {
-      if (files.loading) {
-        return
-      }
-      clearInterval(intervalId)
-      for (const f of files() ?? []) {
-        if (f.name !== filename) {
-          continue
-        }
-        setStore('currentFile', () => f)
-      }
-      // 定位高亮
-      if (fileListElem) {
-        highlightElem(fileListElem.querySelector(`p[title='${filename}']`))
-      }
-    }, 300)
+    setSelectedIdx(-1)
+    setPendingFile(filename ?? '')
   }
   // window.onhashchange = handleHashChange
   window.addEventListener('hashchange', handleHashChange, false)
+  onCleanup(() => window.removeEventListener('hashchange', handleHashChange, false))
   handleHashChange(new HashChangeEvent('init', { newURL: window.location.href }))
 
+  // 目录加载完成后定位 hash 指向的文件。
+  // 用 effect 追踪 sortedFiles()，替代原先 300ms 轮询 setInterval 的写法：更快且不会泄漏
+  createEffect(() => {
+    const filename = pendingFile()
+    if (!filename || files.loading) {
+      return
+    }
+    const list = sortedFiles()
+    const idx = list.findIndex(f => f.name === filename)
+    if (idx > -1) {
+      setStore('currentFile', () => list[idx])
+      setSelectedIdx(idx)
+    }
+    setPendingFile('')
+  })
+
   const seekFile = (step: number) => {
-    let pos = 0
     const fileList = sortedFiles()
     const fileNum = fileList.length
-    const direction = step > 0 ? 1 : -1
-    if (lastTarget && lastTarget.firstElementChild?.textContent === 'F') {
-      pos = parseInt((lastTarget as HTMLElement).dataset.idx!) + step
+    // 空目录直接退出，否则下面的取模会得到 NaN 并越界访问
+    if (fileNum === 0) {
+      return
     }
-    pos = Math.max(0, pos) % fileNum
+    const direction = step > 0 ? 1 : -1
+    // 未选中时从头开始；已选中则从当前位置偏移
+    let pos = selectedIdx() > -1 ? selectedIdx() + step : 0
+    pos = ((pos % fileNum) + fileNum) % fileNum
     const lastPos = pos
 
     // 跳过目录，只显示文件
@@ -161,11 +208,7 @@ const Comp: Component<{ hidden?: boolean }> = (props) => {
         return
       }
     }
-    clickItem(
-      // document.querySelector(`#explorer .file-list p[data-idx='${pos}']`),
-      fileListElem!.querySelector(`p[data-idx='${pos}']`)!,
-      fileList[pos]
-    )
+    clickItem(fileList[pos], pos)
   }
 
   // createResource 不能放在外层，导致seekFile无法暴露，只能用store
@@ -181,7 +224,7 @@ const Comp: Component<{ hidden?: boolean }> = (props) => {
 
   const inputChange = (e: any) => {
     let p = e.currentTarget.value as string
-    if (p === '此电脑' || p === 'Computer' || p === '') {
+    if (p === COMPUTER_LABEL || p === 'Computer' || p === '') {
       p = NoeFile.COMPUTER_ROOT
     } else if (p.endsWith(':')) {
       p = p + '/'
@@ -189,15 +232,28 @@ const Comp: Component<{ hidden?: boolean }> = (props) => {
     if (store.currentDir === p) {
       return
     }
-    setStore('currentDir', () => p)
-    history.pushState({}, '', p ? `#${p}` : '#')
+    navigateTo(p)
   }
 
   // Handle sorting
   const handleSort = (sortType: SortType) => {
     setCurrentSort(sortType)
-    setShowSortMenu(false)
+    // 重新排序后下标失效
+    setSelectedIdx(-1)
+    openSortMenu(false)
   }
+
+  const jumpTo = (path: string) => {
+    openFavMenu(false)
+    if (store.currentDir === path) {
+      return
+    }
+    navigateTo(path)
+  }
+
+  // 「此电脑」不是真实目录，收藏无意义
+  const canFavorite = () => !NoeFile.isComputerRoot(store.currentDir)
+  const btnClass = 'hover:text-green-400 px-2 cursor-pointer text-gray-700'
 
   return (
     <aside id='explorer' classList={{ hidden: props.hidden }} class='flex flex-col border border-gray-200 w-full mx-2 my-2 overflow-hidden'>
@@ -205,16 +261,61 @@ const Comp: Component<{ hidden?: boolean }> = (props) => {
         <input
           // flex-grow 属性决定了子容器要占用父容器多少剩余空间
           class='grow border-b border-gray-200 outline-hidden w-[5%] mr-2'
-          value={NoeFile.isComputerRoot(store.currentDir) ? '此电脑' : store.currentDir}
+          value={NoeFile.isComputerRoot(store.currentDir) ? COMPUTER_LABEL : store.currentDir}
           onchange={inputChange}
         />
         {/* https://icones.js.org/collection/mingcute?s=sort */}
-        <button class='hover:text-green-400 px-2 cursor-pointer text-gray-700' onClick={() => goParent()}>
+        <button class={btnClass} onClick={() => goParent()}>
           <Dynamic component={icons('back')} />
         </button>
+
+        {/* 收藏：点击星标切换当前目录，点右侧箭头展开收藏列表 */}
         <button
-          class='hover:text-green-400 px-2 cursor-pointer text-gray-700'
-          onClick={() => setShowSortMenu(!showSortMenu())}
+          class={btnClass}
+          classList={{ 'text-yellow-400': canFavorite() && isFavorite(store.currentDir), 'opacity-40 cursor-not-allowed': !canFavorite() }}
+          title={canFavorite() ? (isFavorite(store.currentDir) ? '取消收藏' : '收藏当前目录') : '此电脑无法收藏'}
+          onClick={() => canFavorite() && toggleFavorite(store.currentDir)}
+        >
+          <Dynamic component={icons(canFavorite() && isFavorite(store.currentDir) ? 'star-filled' : 'star')} />
+        </button>
+        <button class='hover:text-green-400 cursor-pointer text-gray-700 text-xs px-1' title='收藏夹' onClick={() => openFavMenu(!showFavMenu())}>
+          ▾
+        </button>
+
+        {/* 收藏列表下拉菜单 */}
+        <Show when={showFavMenu()}>
+          <div class='absolute top-5 right-0 mt-2 w-56 max-h-64 overflow-y-auto bg-white rounded-md shadow-lg py-1 z-10 border border-gray-200'>
+            <Show
+              when={favorites().length}
+              fallback={<p class='px-4 py-2 text-sm text-gray-400'>暂无收藏</p>}
+            >
+              <For each={favorites()}>
+                {path => (
+                  <div class='flex items-center hover:bg-gray-100'>
+                    <button
+                      class='grow text-left px-3 py-2 text-sm text-gray-700 truncate cursor-pointer'
+                      title={path}
+                      onClick={() => jumpTo(path)}
+                    >
+                      {path || COMPUTER_LABEL}
+                    </button>
+                    <button
+                      class='px-2 text-gray-400 hover:text-red-500 cursor-pointer'
+                      title='删除收藏'
+                      onClick={() => removeFavorite(path)}
+                    >
+                      <Dynamic component={icons('close')} />
+                    </button>
+                  </div>
+                )}
+              </For>
+            </Show>
+          </div>
+        </Show>
+
+        <button
+          class={btnClass}
+          onClick={() => openSortMenu(!showSortMenu())}
         >
           <Dynamic component={icons('sort')} />
         </button>
@@ -234,13 +335,45 @@ const Comp: Component<{ hidden?: boolean }> = (props) => {
             </For>
           </div>
         )}
-        <button class='hover:text-green-400 px-2 cursor-pointer text-gray-700' onClick={fileAction.refetch}>
+        <button class={btnClass} onClick={fileAction.refetch}>
           <Dynamic component={icons('reload')} />
         </button>
       </section>
-      <section class='file-list overflow-y-scroll' ref={fileListElem}>
+
+      {/* 面包屑：逐级可点击跳转；路径过深时横向滚动，避免撑破窄屏布局 */}
+      <nav class='flex flex-row items-center gap-1 px-1 py-1 text-sm text-gray-500 overflow-x-auto whitespace-nowrap border-b border-gray-100'>
+        <For each={breadcrumbs(store.currentDir)}>
+          {(crumb, i) => {
+            const isLast = () => i() === breadcrumbs(store.currentDir).length - 1
+            return (
+              <>
+                <Show when={i() > 0}><span class='text-gray-300 select-none'>/</span></Show>
+                <button
+                  class='shrink-0'
+                  classList={{
+                    'text-gray-400 cursor-default': isLast(),
+                    'hover:text-green-500 cursor-pointer': !isLast(),
+                  }}
+                  disabled={isLast()}
+                  onClick={() => jumpTo(crumb.path)}
+                >
+                  {crumb.label}
+                </button>
+              </>
+            )
+          }}
+        </For>
+      </nav>
+
+      <section class='file-list overflow-y-scroll'>
         <For each={sortedFiles()}>{(file, i) =>
-          <p data-idx={i()} class='file-items hover:cursor-pointer py-1 whitespace-nowrap' onClick={e => clickItem(e.target, file)} title={file.name}>
+          <p
+            data-idx={i()}
+            class='file-items hover:cursor-pointer py-1 whitespace-nowrap'
+            classList={{ 'bg-green-200': selectedIdx() === i() }}
+            onClick={() => clickItem(file, i())}
+            title={file.name}
+          >
             <Dynamic component={fileTypes(file)} />
             {file.name}
           </p>
