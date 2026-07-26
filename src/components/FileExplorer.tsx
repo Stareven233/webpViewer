@@ -114,12 +114,16 @@ const breadcrumbs = (dir: string) => {
 }
 
 const Comp: Component<{ hidden?: boolean }> = (props) => {
+  // 路径栏默认展示面包屑，点击空白区域后切换为可直接输入的地址栏。
+  const [isEditingPath, setIsEditingPath] = createSignal(false)
   // Add signal for sort menu visibility
   const [showSortMenu, setShowSortMenu] = createSignal(false)
   // 收藏下拉菜单
   const [showFavMenu, setShowFavMenu] = createSignal(false)
   // Add signal for current sort type
   const [currentSort, setCurrentSort] = createSignal<SortType>(SortType.TIME_DESC)
+  let pathInput: HTMLInputElement | undefined
+  let menuArea: HTMLDivElement | undefined
   // Solid treats empty-string source as "no fetch"; wrap so computer root ('') still loads.
   const [files, fileAction] = createResource(() => [store.currentDir] as const, ([dir]) => resolveDir(dir))
   // Create sorted files resource
@@ -135,6 +139,30 @@ const Comp: Component<{ hidden?: boolean }> = (props) => {
     setShowFavMenu(open)
     if (open) setShowSortMenu(false)
   }
+  const closeMenus = () => {
+    setShowSortMenu(false)
+    setShowFavMenu(false)
+  }
+
+  // 菜单打开后，点击工具区以外的任意位置都会关闭，避免悬浮菜单遮挡文件列表。
+  const handleDocumentPointerDown = (event: PointerEvent) => {
+    if (!menuArea?.contains(event.target as Node)) {
+      closeMenus()
+    }
+  }
+  document.addEventListener('pointerdown', handleDocumentPointerDown)
+  onCleanup(() => document.removeEventListener('pointerdown', handleDocumentPointerDown))
+
+  // 切换为输入模式后立即聚焦并选中路径，保持 Windows 地址栏的操作习惯。
+  createEffect(() => {
+    if (!isEditingPath()) {
+      return
+    }
+    requestAnimationFrame(() => {
+      pathInput?.focus()
+      pathInput?.select()
+    })
+  })
 
   // hash 中待定位的文件名，由 handleHashChange 写入，等目录加载完再消费
   const [pendingFile, setPendingFile] = createSignal<string>('')
@@ -222,17 +250,30 @@ const Comp: Component<{ hidden?: boolean }> = (props) => {
     setStore('nextStep', s => 0)
   })
 
-  const inputChange = (e: any) => {
-    let p = e.currentTarget.value as string
-    if (p === COMPUTER_LABEL || p === 'Computer' || p === '') {
-      p = NoeFile.COMPUTER_ROOT
-    } else if (p.endsWith(':')) {
-      p = p + '/'
+  /** 提交地址栏输入；Esc 仅退出编辑，不会意外跳转目录。 */
+  const commitPath = (rawPath: string) => {
+    let path = rawPath.trim()
+    setIsEditingPath(false)
+    if (path === COMPUTER_LABEL || path === 'Computer' || path === '') {
+      path = NoeFile.COMPUTER_ROOT
+    } else if (path.endsWith(':')) {
+      path = path + '/'
     }
-    if (store.currentDir === p) {
+    if (store.currentDir === path) {
       return
     }
-    navigateTo(p)
+    navigateTo(path)
+  }
+
+  const handlePathKeyDown = (event: KeyboardEvent) => {
+    const input = event.currentTarget as HTMLInputElement
+    if (event.key === 'Enter') {
+      event.preventDefault()
+      commitPath(input.value)
+    } else if (event.key === 'Escape') {
+      event.preventDefault()
+      setIsEditingPath(false)
+    }
   }
 
   // Handle sorting
@@ -253,117 +294,149 @@ const Comp: Component<{ hidden?: boolean }> = (props) => {
 
   // 「此电脑」不是真实目录，收藏无意义
   const canFavorite = () => !NoeFile.isComputerRoot(store.currentDir)
+  const canAddCurrentFavorite = () => canFavorite() && !isFavorite(store.currentDir)
+  const addCurrentFavorite = () => {
+    if (!canAddCurrentFavorite()) {
+      return
+    }
+    toggleFavorite(store.currentDir)
+    openFavMenu(false)
+  }
   const btnClass = 'hover:text-green-400 px-2 cursor-pointer text-gray-700'
 
   return (
     <aside id='explorer' classList={{ hidden: props.hidden }} class='flex flex-col border border-gray-200 w-full mx-2 my-2 overflow-hidden'>
-      <section class='flex flex-row justify-center items-center text-lg relative'>
-        <input
-          // flex-grow 属性决定了子容器要占用父容器多少剩余空间
-          class='grow border-b border-gray-200 outline-hidden w-[5%] mr-2'
-          value={NoeFile.isComputerRoot(store.currentDir) ? COMPUTER_LABEL : store.currentDir}
-          onchange={inputChange}
-        />
-        {/* https://icones.js.org/collection/mingcute?s=sort */}
-        <button class={btnClass} onClick={() => goParent()}>
-          <Dynamic component={icons('back')} />
-        </button>
-
-        {/* 收藏：点击星标切换当前目录，点右侧箭头展开收藏列表 */}
-        <button
-          class={btnClass}
-          classList={{ 'text-yellow-400': canFavorite() && isFavorite(store.currentDir), 'opacity-40 cursor-not-allowed': !canFavorite() }}
-          title={canFavorite() ? (isFavorite(store.currentDir) ? '取消收藏' : '收藏当前目录') : '此电脑无法收藏'}
-          onClick={() => canFavorite() && toggleFavorite(store.currentDir)}
-        >
-          <Dynamic component={icons(canFavorite() && isFavorite(store.currentDir) ? 'star-filled' : 'star')} />
-        </button>
-        <button class='hover:text-green-400 cursor-pointer text-gray-700 text-xs px-1' title='收藏夹' onClick={() => openFavMenu(!showFavMenu())}>
-          ▾
-        </button>
-
-        {/* 收藏列表下拉菜单 */}
-        <Show when={showFavMenu()}>
-          <div class='absolute top-5 right-0 mt-2 w-56 max-h-64 overflow-y-auto bg-white rounded-md shadow-lg py-1 z-10 border border-gray-200'>
-            <Show
-              when={favorites().length}
-              fallback={<p class='px-4 py-2 text-sm text-gray-400'>暂无收藏</p>}
+      <section class='flex items-center gap-2 px-1 py-1 text-lg border-b border-gray-100'>
+        <Show
+          when={isEditingPath()}
+          fallback={
+            <nav
+              class='grow min-w-0 flex items-center gap-1 px-1 py-1 text-gray-500 overflow-x-auto whitespace-nowrap rounded cursor-text hover:bg-gray-50'
+              title='点击空白处可编辑路径'
+              onClick={() => setIsEditingPath(true)}
             >
-              <For each={favorites()}>
-                {path => (
-                  <div class='flex items-center hover:bg-gray-100'>
-                    <button
-                      class='grow text-left px-3 py-2 text-sm text-gray-700 truncate cursor-pointer'
-                      title={path}
-                      onClick={() => jumpTo(path)}
-                    >
-                      {path || COMPUTER_LABEL}
-                    </button>
-                    <button
-                      class='px-2 text-gray-400 hover:text-red-500 cursor-pointer'
-                      title='删除收藏'
-                      onClick={() => removeFavorite(path)}
-                    >
-                      <Dynamic component={icons('close')} />
-                    </button>
-                  </div>
-                )}
+              <For each={breadcrumbs(store.currentDir)}>
+                {(crumb, i) => {
+                  const isLast = () => i() === breadcrumbs(store.currentDir).length - 1
+                  return (
+                    <>
+                      <Show when={i() > 0}><span class='text-gray-300 select-none'>/</span></Show>
+                      <button
+                        class='shrink-0'
+                        classList={{
+                          'text-gray-400 cursor-default': isLast(),
+                          'hover:text-green-500 cursor-pointer': !isLast(),
+                        }}
+                        disabled={isLast()}
+                        onClick={event => {
+                          // 面包屑按钮仍负责跳转，不能冒泡为“切换输入模式”。
+                          event.stopPropagation()
+                          jumpTo(crumb.path)
+                        }}
+                      >
+                        {crumb.label}
+                      </button>
+                    </>
+                  )
+                }}
               </For>
-            </Show>
-          </div>
+            </nav>
+          }
+        >
+          <input
+            ref={pathInput}
+            class='grow min-w-0 border border-green-300 rounded px-2 py-1 text-sm outline-hidden ring-2 ring-green-100'
+            value={NoeFile.isComputerRoot(store.currentDir) ? COMPUTER_LABEL : store.currentDir}
+            onBlur={event => commitPath(event.currentTarget.value)}
+            onKeyDown={handlePathKeyDown}
+            aria-label='当前路径'
+          />
         </Show>
 
-        <button
-          class={btnClass}
-          onClick={() => openSortMenu(!showSortMenu())}
-        >
-          <Dynamic component={icons('sort')} />
-        </button>
+        {/* 路径操作与下拉菜单统一收纳在工具区，供全局点击关闭逻辑判断边界。 */}
+        <div ref={menuArea} class='relative flex shrink-0 items-center'>
+          <button class={btnClass} title='返回上一级' onClick={goParent}>
+            <Dynamic component={icons('back')} />
+          </button>
 
-        {/* Sort dropdown menu */}
-        {showSortMenu() && (
-          <div class="absolute top-5 right-0 mt-2 w-32 bg-white rounded-md shadow-lg py-1 z-10 border border-gray-200">
-            <For each={sortOptions}>
-              {option => (
-                <button
-                  class="block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100"
-                  onClick={() => handleSort(option.type)}
-                >
-                  {option.label}
-                </button>
-              )}
-            </For>
-          </div>
-        )}
-        <button class={btnClass} onClick={fileAction.refetch}>
-          <Dynamic component={icons('reload')} />
-        </button>
+          {/* 星标统一作为收藏夹入口，填充状态仅提示当前目录是否已收藏。 */}
+          <button
+            class={btnClass}
+            classList={{ 'text-yellow-400': canFavorite() && isFavorite(store.currentDir) }}
+            title='打开收藏夹'
+            aria-label='打开收藏夹'
+            onClick={() => openFavMenu(!showFavMenu())}
+          >
+            <Dynamic component={icons(canFavorite() && isFavorite(store.currentDir) ? 'star-filled' : 'star')} />
+          </button>
+
+          {/* 收藏列表首项固定为新增当前目录，长列表滚动时仍可直接操作。 */}
+          <Show when={showFavMenu()}>
+            <div class='absolute top-full right-0 mt-1 w-56 max-h-64 overflow-y-auto bg-white rounded-md shadow-lg py-1 z-10 border border-gray-200'>
+              <button
+                class='sticky top-0 z-10 flex w-full items-center border-b border-gray-100 bg-white px-3 py-2 text-left text-sm font-medium text-green-600 shadow-sm'
+                classList={{
+                  'hover:bg-green-50 cursor-pointer': canAddCurrentFavorite(),
+                  'cursor-not-allowed text-gray-400': !canAddCurrentFavorite(),
+                }}
+                disabled={!canAddCurrentFavorite()}
+                title={canFavorite() ? (isFavorite(store.currentDir) ? '当前目录已收藏' : '收藏当前目录') : '此电脑无法收藏'}
+                onClick={addCurrentFavorite}
+              >
+                + 新增收藏当前目录
+              </button>
+              <Show
+                when={favorites().length}
+                fallback={<p class='px-4 py-3 text-sm text-gray-400'>暂无收藏</p>}
+              >
+                <For each={favorites()}>
+                  {path => (
+                    <div class='flex items-center hover:bg-gray-100'>
+                      <button
+                        class='grow text-left px-3 py-2 text-sm text-gray-700 truncate cursor-pointer'
+                        title={path}
+                        onClick={() => jumpTo(path)}
+                      >
+                        {path || COMPUTER_LABEL}
+                      </button>
+                      <button
+                        class='px-2 text-gray-400 hover:text-red-500 cursor-pointer'
+                        title='删除收藏'
+                        onClick={() => removeFavorite(path)}
+                      >
+                        <Dynamic component={icons('close')} />
+                      </button>
+                    </div>
+                  )}
+                </For>
+              </Show>
+            </div>
+          </Show>
+
+          <button class={btnClass} title='排序方式' onClick={() => openSortMenu(!showSortMenu())}>
+            <Dynamic component={icons('sort')} />
+          </button>
+
+          {/* 排序菜单与收藏菜单共享同一个定位容器，避免窄屏时溢出。 */}
+          <Show when={showSortMenu()}>
+            <div class='absolute top-full right-0 mt-1 w-32 bg-white rounded-md shadow-lg py-1 z-10 border border-gray-200'>
+              <For each={sortOptions}>
+                {option => (
+                  <button
+                    class='block w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer'
+                    onClick={() => handleSort(option.type)}
+                  >
+                    {option.label}
+                  </button>
+                )}
+              </For>
+            </div>
+          </Show>
+          <button class={btnClass} title='刷新目录' onClick={fileAction.refetch}>
+            <Dynamic component={icons('reload')} />
+          </button>
+        </div>
       </section>
-
-      {/* 面包屑：逐级可点击跳转；路径过深时横向滚动，避免撑破窄屏布局 */}
-      <nav class='flex flex-row items-center gap-1 px-1 py-1 text-sm text-gray-500 overflow-x-auto whitespace-nowrap border-b border-gray-100'>
-        <For each={breadcrumbs(store.currentDir)}>
-          {(crumb, i) => {
-            const isLast = () => i() === breadcrumbs(store.currentDir).length - 1
-            return (
-              <>
-                <Show when={i() > 0}><span class='text-gray-300 select-none'>/</span></Show>
-                <button
-                  class='shrink-0'
-                  classList={{
-                    'text-gray-400 cursor-default': isLast(),
-                    'hover:text-green-500 cursor-pointer': !isLast(),
-                  }}
-                  disabled={isLast()}
-                  onClick={() => jumpTo(crumb.path)}
-                >
-                  {crumb.label}
-                </button>
-              </>
-            )
-          }}
-        </For>
-      </nav>
 
       <section class='file-list overflow-y-scroll'>
         <For each={sortedFiles()}>{(file, i) =>
