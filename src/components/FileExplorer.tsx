@@ -25,7 +25,7 @@ const fileTypes = (obj: NoeFile) => {
 }
 
 const { store, setStore } = neoStore
-const { favorites, isFavorite, toggleFavorite, removeFavorite } = favStore
+const { savedIPs, savedPaths, isFavorite, addFavorite, removePath, removeIP } = favStore
 // 当前选中项在排序后列表中的下标，-1 表示未选中。
 // 用 signal 声明式高亮，替代直接操作 DOM classList
 const [selectedIdx, setSelectedIdx] = createSignal(-1)
@@ -284,6 +284,16 @@ const Comp: Component<{ hidden?: boolean }> = (props) => {
     openSortMenu(false)
   }
 
+  const currentIP = () => window.location.origin
+
+  const displayIP = (ip: string) => {
+    try {
+      return new URL(ip).host
+    } catch {
+      return ip
+    }
+  }
+
   const jumpTo = (path: string) => {
     openFavMenu(false)
     if (store.currentDir === path) {
@@ -292,16 +302,34 @@ const Comp: Component<{ hidden?: boolean }> = (props) => {
     navigateTo(path)
   }
 
-  // 「此电脑」不是真实目录，收藏无意义
+  /** 仅切换站点，目录由右侧收藏列表独立决定。 */
+  const jumpToIP = (ip: string) => {
+    if (ip === currentIP()) return
+    const target = new URL(window.location.href)
+    target.protocol = new URL(ip).protocol
+    target.host = new URL(ip).host
+    target.hash = ''
+    window.location.href = target.toString()
+  }
+
+  // 「此电脑」不是真实目录，收藏无意义；名称是 IP 的可选显示标签。
   const canFavorite = () => !NoeFile.isComputerRoot(store.currentDir)
-  const canAddCurrentFavorite = () => canFavorite() && !isFavorite(store.currentDir)
-  const addCurrentFavorite = () => {
-    if (!canAddCurrentFavorite()) {
+  const currentFavorite = () => canFavorite() && isFavorite(store.currentDir, currentIP())
+  const [favoriteName, setFavoriteName] = createSignal('')
+  const saveCurrentFavorite = () => {
+    if (!canFavorite()) {
       return
     }
-    toggleFavorite(store.currentDir)
+    addFavorite(store.currentDir, currentIP(), favoriteName())
+    setFavoriteName('')
     openFavMenu(false)
   }
+
+  const removeSavedIP = (ip: string) => {
+    if (!confirm(`确定删除 ${displayIP(ip)} 下的全部收藏吗？`)) return
+    removeIP(ip)
+  }
+
   const btnClass = 'hover:text-green-400 px-2 cursor-pointer text-gray-700'
 
   return (
@@ -362,54 +390,112 @@ const Comp: Component<{ hidden?: boolean }> = (props) => {
           {/* 星标统一作为收藏夹入口，填充状态仅提示当前目录是否已收藏。 */}
           <button
             class={btnClass}
-            classList={{ 'text-yellow-400': canFavorite() && isFavorite(store.currentDir) }}
+            classList={{ 'text-yellow-400': currentFavorite() }}
             title='打开收藏夹'
             aria-label='打开收藏夹'
             onClick={() => openFavMenu(!showFavMenu())}
           >
-            <Dynamic component={icons(canFavorite() && isFavorite(store.currentDir) ? 'star-filled' : 'star')} />
+            <Dynamic component={icons(currentFavorite() ? 'star-filled' : 'star')} />
           </button>
 
-          {/* 收藏列表首项固定为新增当前目录，长列表滚动时仍可直接操作。 */}
+          {/* 收藏菜单按「IP / 路径」分栏：两侧可以分别切换站点和目录。 */}
           <Show when={showFavMenu()}>
-            <div class='absolute top-full right-0 mt-1 w-56 max-h-64 overflow-y-auto bg-white rounded-md shadow-lg py-1 z-10 border border-gray-200'>
-              <button
-                class='sticky top-0 z-10 flex w-full items-center border-b border-gray-100 bg-white px-3 py-2 text-left text-sm font-medium text-green-600 shadow-sm'
-                classList={{
-                  'hover:bg-green-50 cursor-pointer': canAddCurrentFavorite(),
-                  'cursor-not-allowed text-gray-400': !canAddCurrentFavorite(),
-                }}
-                disabled={!canAddCurrentFavorite()}
-                title={canFavorite() ? (isFavorite(store.currentDir) ? '当前目录已收藏' : '收藏当前目录') : '此电脑无法收藏'}
-                onClick={addCurrentFavorite}
-              >
-                + 新增收藏当前目录
-              </button>
-              <Show
-                when={favorites().length}
-                fallback={<p class='px-4 py-3 text-sm text-gray-400'>暂无收藏</p>}
-              >
-                <For each={favorites()}>
-                  {path => (
-                    <div class='flex items-center hover:bg-gray-100'>
-                      <button
-                        class='grow text-left px-3 py-2 text-sm text-gray-700 truncate cursor-pointer'
-                        title={path}
-                        onClick={() => jumpTo(path)}
-                      >
-                        {path || COMPUTER_LABEL}
-                      </button>
-                      <button
-                        class='px-2 text-gray-400 hover:text-red-500 cursor-pointer'
-                        title='删除收藏'
-                        onClick={() => removeFavorite(path)}
-                      >
-                        <Dynamic component={icons('close')} />
-                      </button>
-                    </div>
-                  )}
-                </For>
-              </Show>
+            <div class='absolute top-full right-0 z-10 mt-1 w-[min(36rem,calc(100vw-1rem))] overflow-hidden rounded-md border border-gray-200 bg-white shadow-lg'>
+              <div class='flex items-start gap-2 border-b border-gray-100 p-2'>
+                <div class='min-w-0 grow'>
+                  <input
+                    type='text'
+                    value={favoriteName()}
+                    placeholder='IP 名称（可选）'
+                    aria-label='IP 名称（可选）'
+                    title='名称属于 IP；更新后会同步覆盖该 IP 下的全部收藏'
+                    onInput={(event) => setFavoriteName(event.currentTarget.value)}
+                    onKeyDown={(event) => {
+                      if (event.key === 'Enter') saveCurrentFavorite()
+                    }}
+                    class='w-full rounded border border-gray-200 px-2 py-1.5 text-sm outline-hidden focus:border-green-400 focus:ring-2 focus:ring-green-100'
+                  />
+                  {/* <p class='mt-1 px-0.5 text-[11px] leading-4 text-gray-400'>名称属于 IP，更新会同步覆盖该 IP 下的全部收藏</p> */}
+                </div>
+                <button
+                  class='shrink-0 rounded bg-green-600 px-3 py-1.5 text-sm text-white transition-colors hover:bg-green-700 disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-400'
+                  disabled={!canFavorite()}
+                  title={canFavorite() ? (currentFavorite() ? '更新当前收藏名称' : '收藏当前目录') : '此电脑无法收藏'}
+                  onClick={saveCurrentFavorite}
+                >
+                  {currentFavorite() ? '更新' : '收藏当前目录'}
+                </button>
+              </div>
+
+              <div class='grid max-h-64 min-h-32 grid-cols-[minmax(7rem,0.8fr)_minmax(0,1.2fr)]'>
+                <section class='min-w-0 overflow-y-auto border-r border-gray-100'>
+                  <h3 class='border-b border-gray-100 px-3 py-2 text-xs font-medium text-gray-400'>保存的 IP</h3>
+                  <Show
+                    when={savedIPs().length > 0}
+                    fallback={<p class='px-3 py-4 text-xs text-gray-400'>暂无保存的 IP</p>}
+                  >
+                    <For each={savedIPs()}>
+                      {(savedIP) => (
+                        <div class='group flex items-center gap-1 px-2 py-1 hover:bg-gray-50'>
+                          <label class='flex min-w-0 grow cursor-pointer items-center gap-2 py-1 text-sm text-gray-700'>
+                            <input
+                              type='radio'
+                              name='saved-webpviewer-ip'
+                              checked={savedIP.ip === currentIP()}
+                              onChange={() => jumpToIP(savedIP.ip)}
+                              class='accent-green-600'
+                            />
+                            <span class='min-w-0 truncate' title={savedIP.ip}>
+                              <Show when={savedIP.name} fallback={displayIP(savedIP.ip)}>
+                                <span class='block truncate'>{savedIP.name}</span>
+                                <span class='block truncate text-xs text-gray-400'>{displayIP(savedIP.ip)}</span>
+                              </Show>
+                            </span>
+                          </label>
+                          <button
+                            class='shrink-0 px-1 text-gray-400 hover:text-red-500 cursor-pointer'
+                            title='删除此 IP 的所有收藏'
+                            aria-label={`删除 ${displayIP(savedIP.ip)}`}
+                            onClick={() => removeSavedIP(savedIP.ip)}
+                          >
+                            <Dynamic component={icons('close')} />
+                          </button>
+                        </div>
+                      )}
+                    </For>
+                  </Show>
+                </section>
+
+                <section class='min-w-0 overflow-y-auto'>
+                  <h3 class='border-b border-gray-100 px-3 py-2 text-xs font-medium text-gray-400'>收藏路径</h3>
+                  <Show
+                    when={savedPaths().length > 0}
+                    fallback={<p class='px-3 py-4 text-xs text-gray-400'>暂无收藏</p>}
+                  >
+                    <For each={savedPaths()}>
+                      {(path) => (
+                        <div class='flex items-center hover:bg-gray-50'>
+                          <button
+                            class='min-w-0 grow truncate px-3 py-2 text-left text-sm text-gray-700 cursor-pointer'
+                            title={path}
+                            onClick={() => jumpTo(path)}
+                          >
+                            {path}
+                          </button>
+                          <button
+                            class='shrink-0 px-2 text-gray-400 hover:text-red-500 cursor-pointer'
+                            title='删除此路径的所有收藏'
+                            aria-label={`删除收藏路径 ${path}`}
+                            onClick={() => removePath(path)}
+                          >
+                            <Dynamic component={icons('close')} />
+                          </button>
+                        </div>
+                      )}
+                    </For>
+                  </Show>
+                </section>
+              </div>
             </div>
           </Show>
 
@@ -456,5 +542,4 @@ const Comp: Component<{ hidden?: boolean }> = (props) => {
     </aside>
   )
 }
-
 export default Comp
