@@ -35,12 +35,18 @@ export default defineConfig({
         const distPath = path.resolve(__dirname, 'dist')
         const distFile = (name: string) => path.join(distPath, name)
         await fs.writeFile(distFile('version.json'), JSON.stringify(versionJson, null, 2))
-        console.log('building server...')
-        await execFilePromise('go', ['build', '.'], { cwd: './server/v3', })
-        console.log('copying files...')
-        const serverFile = (name: string) => path.resolve(__dirname, 'server/v3', name)
-        await fs.copyFile(serverFile('server-v3.exe'), distFile('server.exe'))
-        await fs.copyFile(serverFile('config.yaml'), distFile('config.yaml'))
+        // Go 会根据构建主机生成原生可执行文件；发布目录也使用对应平台的名称。
+        // 显式指定 -o 可避免 Linux 依赖 Windows 的 .exe 文件名。
+        const serverBinaryName = process.platform === 'win32' ? 'server.exe' : 'server'
+        const serverDirectory = path.resolve(__dirname, 'server/v3')
+        const serverPath = distFile(serverBinaryName)
+        console.log(`building ${serverBinaryName}...`)
+        await execFilePromise('go', ['build', '-o', serverPath, '.'], { cwd: serverDirectory })
+        // Linux 的发布包需要保留可执行位，防止解压后无法直接运行 ./server。
+        if (process.platform !== 'win32') {
+          await fs.chmod(serverPath, 0o755)
+        }
+        await fs.copyFile(path.join(serverDirectory, 'config.yaml'), distFile('config.yaml'))
         console.log('\n✅ Info and config written to:', distPath)
       }
     },

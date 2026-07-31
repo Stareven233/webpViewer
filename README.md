@@ -50,17 +50,26 @@
 
 > 手势会自动让位给原生滚动：在可滚动的文本/列表上滑动只滚动内容不翻页；双指缩放期间不会误触发翻页。滑动距离阈值按屏幕尺寸自适应，快速轻扫也能翻页
 
-## use (windows)
-### install from source
-1. open terminal
-2. git clone
-3. cd webpViewer
-4. pnpm i
-5. pnpm build
-6. go build -C server/v3
-7. webpViewer.ps1
+## 使用（Windows / Linux）
 
-### release
-1. download release
-2. unzip
-3. webpViewer.ps1
+### 从源码运行
+
+前置条件：安装 [Bun](https://bun.sh/) 与 Go。项目使用 Bun 管理前端依赖和构建。
+
+```sh
+bun install --frozen-lockfile
+bun run build
+```
+
+构建完成后，进入 `dist` 目录运行与当前系统匹配的服务端：
+
+- Windows：`./server.exe`（PowerShell 中也可使用 `./server.exe`）
+- Linux：`./server`
+
+`bun run build` 会同时构建 SolidJS 前端、生成 `version.json`，并编译当前平台的 Go 服务端。Windows 发布物为 `dist/server.exe`；Linux 发布物为 `dist/server`。
+
+### 发布包运行
+
+1. 下载并解压**与当前操作系统一致**的发布包。
+2. 在解压后的目录中运行 `server.exe`（Windows）或 `./server`（Linux）。
+3. 默认会打开浏览器；Linux 桌面环境需要提供 `xdg-open`。无图形环境可在 `config.yaml` 中将 `openBrowser` 设为 `false`。

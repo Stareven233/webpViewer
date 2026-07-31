@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -9,12 +8,8 @@ import (
 	"mime/multipart"
 	"net/url"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
-	"syscall"
-	"unsafe"
 
 	"gopkg.in/yaml.v2"
 
@@ -83,83 +78,6 @@ func readAppInfo(path string) AppInfo {
 	return appinfo
 }
 
-func setConsoleTitle(title string) error {
-	// 获取kernel32.dll中的SetConsoleTitleW函数
-	kernel32 := syscall.NewLazyDLL("kernel32.dll")
-	proc := kernel32.NewProc("SetConsoleTitleW")
-
-	// 将Go字符串转换为UTF16指针
-	ptr, err := syscall.UTF16PtrFromString(title)
-	if err != nil {
-		return err
-	}
-
-	// 调用Windows API
-	proc.Call(uintptr(unsafe.Pointer(ptr)))
-	return nil
-}
-
-func OpenEdge(url string) error {
-	var err error
-
-	switch runtime.GOOS {
-	case "windows":
-		// Windows 上 Edge 是默认浏览器，可以直接使用 start 命令
-		err = exec.Command("cmd", "/c", "start", "msedge", url).Run()
-	case "darwin": // macOS
-		err = exec.Command("open", "-a", "Microsoft Edge", url).Run()
-	case "linux":
-		err = exec.Command("microsoft-edge", url).Run()
-	default:
-		err = fmt.Errorf("unsupported platform")
-	}
-
-	return err
-}
-
-// listComputerRoot returns top-level selectable roots.
-// On Windows this is available drive letters (C:/, D:/, ...);
-// on Unix-like systems it is the filesystem root "/".
-func listComputerRoot() []map[string]any {
-	// Always return a non-nil slice so JSON is [] not null.
-	drives := make([]map[string]any, 0)
-
-	if runtime.GOOS == "windows" {
-		// GetLogicalDrives avoids Stat-blocking on empty floppy/optical drives.
-		kernel32 := syscall.NewLazyDLL("kernel32.dll")
-		proc := kernel32.NewProc("GetLogicalDrives")
-		ret, _, callErr := proc.Call()
-		if ret == 0 {
-			log.Printf("GetLogicalDrives failed: %v", callErr)
-			return drives
-		}
-		mask := uint32(ret)
-		for i := 0; i < 26; i++ {
-			if mask&(1<<uint(i)) == 0 {
-				continue
-			}
-			letter := string(rune('A' + i))
-			drives = append(drives, map[string]any{
-				"name":        letter + ":",
-				"size":        int64(-1),
-				"mtime":       int64(0),
-				"isFile":      false,
-				"isDirectory": true,
-			})
-		}
-		return drives
-	}
-
-	// Unix-like: computer root surfaces "/" as a single entry.
-	return append(drives, map[string]any{
-		"name":        "/",
-		"size":        int64(-1),
-		"mtime":       int64(0),
-		"isFile":      false,
-		"isDirectory": true,
-	})
-}
-
 // linkTarget 是链接文件解析后返回给前端的目标信息。路径统一转成“/”，
 // 以匹配前端路由和 URL hash 使用的跨平台路径表示。
 type linkTarget struct {
@@ -183,32 +101,9 @@ func resolveLinkTarget(filePath string) (linkTarget, error) {
 			return linkTarget{}, fmt.Errorf("resolve symbolic link: %w", err)
 		}
 	case strings.EqualFold(filepath.Ext(filePath), ".lnk"):
-		if runtime.GOOS != "windows" {
-			return linkTarget{}, fmt.Errorf("Windows shortcut files are unsupported on %s", runtime.GOOS)
-		}
-
-		// 路径通过环境变量传入，避免快捷方式名称被拼入 PowerShell 脚本造成命令注入。
-		// PowerShell 5.1 的标准输出仍受当前控制台代码页影响，直接输出中文会变成乱码。
-		// 因此先用 UTF-8 编码再 Base64 输出，Go 端解码后可稳定保留所有 Unicode 路径。
-		command := exec.Command(
-			"powershell",
-			"-NoProfile",
-			"-NonInteractive",
-			"-ExecutionPolicy", "Bypass",
-			"-Command", "$shortcut = (New-Object -ComObject WScript.Shell).CreateShortcut($env:WEBP_VIEWER_SHORTCUT); $bytes = [Text.Encoding]::UTF8.GetBytes([string]$shortcut.TargetPath); [Console]::Out.Write([Convert]::ToBase64String($bytes))",
-		)
-		command.Env = append(os.Environ(), "WEBP_VIEWER_SHORTCUT="+filePath)
-		output, commandErr := command.Output()
-		if commandErr != nil {
-			return linkTarget{}, fmt.Errorf("read Windows shortcut target: %w", commandErr)
-		}
-		decodedTargetPath, decodeErr := base64.StdEncoding.DecodeString(strings.TrimSpace(string(output)))
-		if decodeErr != nil {
-			return linkTarget{}, fmt.Errorf("decode Windows shortcut target: %w", decodeErr)
-		}
-		targetPath = string(decodedTargetPath)
-		if targetPath == "" {
-			return linkTarget{}, fmt.Errorf("Windows shortcut has no local target")
+		targetPath, err = resolveWindowsShortcut(filePath)
+		if err != nil {
+			return linkTarget{}, err
 		}
 	default:
 		return linkTarget{}, fmt.Errorf("file is not a supported local link")
@@ -302,14 +197,10 @@ func main() {
 	// Empty dir means "computer root": Windows returns available drive letters;
 	// Unix-like systems return filesystem root "/".
 	app.Get("/list", func(c fiber.Ctx) error {
-		// Fiber treats missing and empty query the same; clients send dir= for computer root.
-		rawQuery := string(c.Request().URI().QueryString())
-		hasDirParam := strings.Contains(rawQuery, "dir=")
 		pwd := c.Query("dir")
-		if !hasDirParam && pwd == "" {
-			pwd = "C:/"
-		}
-		if hasDirParam && pwd == "" {
+		// 无论请求是否显式携带 dir=，空路径都表示“设备”根视图，
+		// 由当前平台返回盘符列表或 Unix 根目录，避免 Linux 误访问 C:/。
+		if pwd == "" {
 			return c.JSON(listComputerRoot())
 		}
 		if strings.HasSuffix(pwd, ":") {
@@ -482,7 +373,9 @@ func main() {
 	setConsoleTitle(title)
 	log.Printf("%s running at http://%s:%d%s\n", title, realhost, config.Port, config.MountPoint)
 	if config.OpenBrowser {
-		OpenEdge(fmt.Sprintf("http://%s:%d%s", realhost, config.Port, config.MountPoint))
+		if err := openBrowser(fmt.Sprintf("http://%s:%d%s", realhost, config.Port, config.MountPoint)); err != nil {
+			log.Printf("Open browser failed: %v", err)
+		}
 	}
 
 	log.Fatal(app.Listen(fmt.Sprintf("%s:%d", config.Host, config.Port)))

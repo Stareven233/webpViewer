@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"mime/multipart"
 	"net/http"
 	"net/http/httptest"
@@ -87,6 +88,10 @@ func TestResolveLinkTargetFollowsSymbolicLink(t *testing.T) {
 
 	target, err := resolveLinkTarget(linkPath)
 	if err != nil {
+		// 部分受限 Windows 环境可创建链接但禁止解析目标；这类主机无法验证链接能力。
+		if runtime.GOOS == "windows" && errors.Is(err, os.ErrPermission) {
+			t.Skipf("resolve symbolic link: %v", err)
+		}
 		t.Fatalf("resolve symbolic link: %v", err)
 	}
 	if target.Path != filepath.ToSlash(targetPath) {
