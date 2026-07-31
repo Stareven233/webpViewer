@@ -30,7 +30,7 @@ const { savedIPs, savedPaths, isFavorite, addFavorite, removePath, removeIP } = 
 // 用 signal 声明式高亮，替代直接操作 DOM classList
 const [selectedIdx, setSelectedIdx] = createSignal(-1)
 
-const COMPUTER_LABEL = '此电脑'
+const COMPUTER_LABEL = '设备'
 
 const resolveDir = async (dir: string): Promise<NoeFile[]> => {
   // console.log('dir :>> ', dir)
@@ -93,7 +93,7 @@ const goParent = () => {
 
 /**
  * 把当前目录拆成可点击的面包屑分段。
- * 首段固定为「此电脑」（COMPUTER_ROOT）；unix 绝对路径的根 "/" 需单独成段，
+ * 首段固定为「设备」（COMPUTER_ROOT）；unix 绝对路径的根 "/" 需单独成段，
  * 否则会被 split('/') 吃掉，导致无法点回根目录。
  */
 const breadcrumbs = (dir: string) => {
@@ -312,7 +312,7 @@ const Comp: Component<{ hidden?: boolean }> = (props) => {
     window.location.href = target.toString()
   }
 
-  // 「此电脑」不是真实目录，收藏无意义；名称是 IP 的可选显示标签。
+  // 「设备」不是真实目录，收藏无意义；名称是 IP 的可选显示标签。
   const canFavorite = () => !NoeFile.isComputerRoot(store.currentDir)
   const currentFavorite = () => canFavorite() && isFavorite(store.currentDir, currentIP())
   const [favoriteName, setFavoriteName] = createSignal('')
@@ -330,7 +330,7 @@ const Comp: Component<{ hidden?: boolean }> = (props) => {
     removeIP(ip)
   }
 
-  const btnClass = 'hover:text-green-400 px-2 cursor-pointer text-gray-700'
+  const btnClass = 'hover:text-green-400 px-1 cursor-pointer text-gray-700'
 
   return (
     <aside id='explorer' classList={{ hidden: props.hidden }} class='flex flex-col border border-gray-200 w-full mx-2 my-2 overflow-hidden'>
@@ -420,7 +420,7 @@ const Comp: Component<{ hidden?: boolean }> = (props) => {
                 <button
                   class='shrink-0 rounded bg-green-600 px-3 py-1.5 text-sm text-white transition-colors hover:bg-green-700 disabled:cursor-not-allowed disabled:bg-gray-200 disabled:text-gray-400'
                   disabled={!canFavorite()}
-                  title={canFavorite() ? (currentFavorite() ? '更新当前收藏名称' : '收藏当前目录') : '此电脑无法收藏'}
+                  title={canFavorite() ? (currentFavorite() ? '更新当前收藏名称' : '收藏当前目录') : '设备无法收藏'}
                   onClick={saveCurrentFavorite}
                 >
                   {currentFavorite() ? '更新' : '收藏当前目录'}
@@ -518,23 +518,29 @@ const Comp: Component<{ hidden?: boolean }> = (props) => {
               </For>
             </div>
           </Show>
-          <button class={btnClass} title='刷新目录' onClick={fileAction.refetch}>
+          {/* <button class={btnClass} title='刷新目录' onClick={fileAction.refetch}>
             <Dynamic component={icons('reload')} />
-          </button>
+          </button> */}
         </div>
       </section>
 
-      <section class='file-list overflow-y-scroll'>
+      {/*
+        文件列表只提供纵向原生滚动：仅声明 overflow-y 时，CSS 会把 overflow-x 隐式计算为 auto；
+        超长文件名会使横向手势被误判为列表滚动。文件名通过换行完整展示，
+        再显式禁用横向滚动并声明 pan-y，让左右滑动稳定交给 App 的面板切换手势处理。
+      */}
+      <section class='file-list flex-1 min-h-0 overflow-x-hidden overflow-y-auto touch-pan-y'>
         <For each={sortedFiles()}>{(file, i) =>
           <p
             data-idx={i()}
-            class='file-items hover:cursor-pointer py-1 whitespace-nowrap'
+            class='file-items flex items-start py-1 hover:cursor-pointer'
             classList={{ 'bg-green-200': selectedIdx() === i() }}
             onClick={() => clickItem(file, i())}
             title={file.name}
           >
             <Dynamic component={fileTypes(file)} />
-            {file.name}
+            {/* 使用 break-all 保证无分隔符的超长文件名也能完整显示，同时不制造横向滚动区域。 */}
+            <span class='min-w-0 break-all'>{file.name}</span>
           </p>
         }</For>
       </section>

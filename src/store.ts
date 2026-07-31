@@ -4,7 +4,7 @@ import { NoeFile, FileSize } from './utils/format.ts'
 
 
 export const config = {
-  // 默认根目录：'' (COMPUTER_ROOT) 表示"此电脑"磁盘选择视图
+  // 默认根目录：'' (COMPUTER_ROOT) 表示"设备"磁盘选择视图
   defaultRoot: NoeFile.COMPUTER_ROOT,
   maxFileSize: new FileSize(200, 'MB'),
   extOfText: new Set(['ass', 'srt', 'txt', 'json', 'xml', 'css', 'js', 'ts', 'py', 'java', 'php', 'sh', 'bat', 'cmd', 'ps1', 'md', 'html', 'htm', 'vue', 'jsx', 'tsx', 'c', 'cpp', 'h', 'hpp', 'h', 'log', 'ini', 'conf', 'yaml', ]),
