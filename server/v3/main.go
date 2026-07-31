@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"mime/multipart"
 	"net/url"
 	"os"
 	"os/exec"
@@ -115,7 +116,6 @@ func OpenEdge(url string) error {
 	return err
 }
 
-
 // listComputerRoot returns top-level selectable roots.
 // On Windows this is available drive letters (C:/, D:/, ...);
 // on Unix-like systems it is the filesystem root "/".
@@ -157,6 +157,66 @@ func listComputerRoot() []map[string]any {
 		"isFile":      false,
 		"isDirectory": true,
 	})
+}
+
+// saveUploadedFile 会先将完整内容写入目标目录内的临时文件，再替换正式文件。
+// 这样首个请求中断或写入失败时不会留下残缺文件，后续重试也不会误以为修复了上传。
+func saveUploadedFile(dir string, file *multipart.FileHeader) error {
+	if strings.TrimSpace(dir) == "" {
+		return fmt.Errorf("upload destination is empty")
+	}
+
+	dirInfo, err := os.Stat(dir)
+	if err != nil {
+		return fmt.Errorf("read upload destination: %w", err)
+	}
+	if !dirInfo.IsDir() {
+		return fmt.Errorf("upload destination is not a directory")
+	}
+
+	// 浏览器提供的文件名不应参与路径拼接，防止携带不同平台分隔符时越过当前目录。
+	fileName := filepath.Base(strings.ReplaceAll(file.Filename, "\\", "/"))
+	if fileName == "." || fileName == ".." || fileName == string(filepath.Separator) || fileName == "" {
+		return fmt.Errorf("invalid upload file name")
+	}
+
+	src, err := file.Open()
+	if err != nil {
+		return fmt.Errorf("open uploaded file: %w", err)
+	}
+	defer src.Close()
+
+	tempFile, err := os.CreateTemp(dir, ".webpviewer-upload-*")
+	if err != nil {
+		return fmt.Errorf("create temporary upload file: %w", err)
+	}
+	tempPath := tempFile.Name()
+	cleanupTempFile := func() {
+		tempFile.Close()
+		os.Remove(tempPath)
+	}
+
+	if _, err := io.Copy(tempFile, src); err != nil {
+		cleanupTempFile()
+		return fmt.Errorf("write uploaded file: %w", err)
+	}
+	if err := tempFile.Close(); err != nil {
+		os.Remove(tempPath)
+		return fmt.Errorf("close temporary upload file: %w", err)
+	}
+
+	dstPath := filepath.Join(dir, fileName)
+	// 保持原有“同名文件覆盖”的行为，但只在临时文件完整写入后才替换旧文件。
+	if err := os.Remove(dstPath); err != nil && !os.IsNotExist(err) {
+		os.Remove(tempPath)
+		return fmt.Errorf("replace existing file: %w", err)
+	}
+	if err := os.Rename(tempPath, dstPath); err != nil {
+		os.Remove(tempPath)
+		return fmt.Errorf("finalize uploaded file: %w", err)
+	}
+
+	return nil
 }
 
 func main() {
@@ -298,26 +358,18 @@ func main() {
 	// File upload endpoint
 	app.Post("/upload", func(c fiber.Ctx) error {
 		dir := c.Query("dir")
+		if strings.TrimSpace(dir) == "" {
+			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "Please select a destination folder"})
+		}
+
 		file, err := c.FormFile("file")
 		if err != nil {
 			return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"message": "Invalid file upload"})
 		}
 
-		src, err := file.Open()
-		if err != nil {
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"message": "Failed to open uploaded file"})
-		}
-		defer src.Close()
-
-		dstPath := filepath.Join(dir, file.Filename)
-		dst, err := os.Create(dstPath)
-		if err != nil {
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"message": "Failed to create file"})
-		}
-		defer dst.Close()
-
-		if _, err := io.Copy(dst, src); err != nil {
-			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"message": "Failed to save file"})
+		if err := saveUploadedFile(dir, file); err != nil {
+			log.Printf("Upload %q to %q failed: %v", file.Filename, dir, err)
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"message": "Failed to save uploaded file"})
 		}
 
 		return c.JSON(fiber.Map{"message": "File uploaded successfully"})

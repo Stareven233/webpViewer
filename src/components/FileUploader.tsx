@@ -1,30 +1,69 @@
-import type { Component } from 'solid-js'
+import { createSignal, type Component } from 'solid-js'
 import neoStore from '../store.ts'
 import { uploadFile } from '../requests.ts'
 import * as MsgBox from './MessageBox.tsx'
-import { formatDate } from '../utils/format.ts'
+import { formatDate, NoeFile } from '../utils/format.ts'
 
+interface Props {
+  /** 上传完成后由目录列表重新拉取数据，避免文件已写入但界面仍显示旧列表。 */
+  onUploadComplete?: () => void
+}
 
-const Comp: Component = () => {
+const Comp: Component<Props> = (props) => {
   let textModal: HTMLDialogElement | undefined
+  let fileInput: HTMLInputElement | undefined
   let fileNameInput: HTMLInputElement | undefined
   let fileExtensionInput: HTMLInputElement | undefined
   let fileContentTextarea: HTMLTextAreaElement | undefined
+  const [isUploading, setIsUploading] = createSignal(false)
 
-  const handleFileChange = async (event: Event) => {
-    const target = event.target as HTMLInputElement
-    if (!target.files || target.files.length <= 0) {
-      return
+  /**
+   * 上传期间锁定入口，防止首个请求尚未完成时被重复触发。
+   * 同时在这里快照目录，避免异步上传过程中切换目录导致目标位置漂移。
+   */
+  const submitUpload = async (formData: FormData, successMessage: string) => {
+    if (isUploading()) {
+      return false
     }
-    const { store } = neoStore
-    const formData = new FormData()
-    formData.append('file', target.files[0])
+
+    const dir = neoStore.store.currentDir
+    if (NoeFile.isComputerRoot(dir)) {
+      MsgBox.popup('error', 'Please select a destination folder before uploading.', MsgBox.Type.warn)
+      return false
+    }
+
+    setIsUploading(true)
     try {
-      await uploadFile(store.currentDir, formData)
-      MsgBox.popup('success', 'File uploaded successfully!', MsgBox.Type.success)
+      await uploadFile(dir, formData)
+      props.onUploadComplete?.()
+      MsgBox.popup('success', successMessage, MsgBox.Type.success)
+      return true
     } catch (error) {
       console.error('Uploading file:', error)
-      MsgBox.popup('fail', `Failed to upload file: ${error}`, MsgBox.Type.error)
+      MsgBox.popup('fail', `Failed to upload file: ${error instanceof Error ? error.message : String(error)}`, MsgBox.Type.error)
+      return false
+    } finally {
+      setIsUploading(false)
+    }
+  }
+
+  const handleFileChange = async (event: Event) => {
+    const target = event.currentTarget as HTMLInputElement
+    const file = target.files?.[0]
+    // 选中文件后立即清空控件值；失败时可直接再次选择同一个文件重新上传。
+    target.value = ''
+    if (!file) {
+      return
+    }
+
+    const formData = new FormData()
+    formData.append('file', file)
+    await submitUpload(formData, 'File uploaded successfully!')
+  }
+
+  const openFileDialog = () => {
+    if (!isUploading()) {
+      fileInput?.click()
     }
   }
 
@@ -43,26 +82,17 @@ const Comp: Component = () => {
     }
 
     const fullFileName = fileExtension ? `${fileName}.${fileExtension.replace(/^\./, '')}` : fileName
+    const blob = new Blob([fileContent], { type: 'text/plain' })
+    const formData = new FormData()
+    formData.append('file', blob, fullFileName)
 
-    try {
-      const { store } = neoStore
-      const blob = new Blob([fileContent], { type: 'text/plain' })
-      const formData = new FormData()
-      formData.append('file', blob, fullFileName)
-
-      await uploadFile(store.currentDir, formData)
-      MsgBox.popup('success', 'Text file created successfully!', MsgBox.Type.success)
-
-      // Close modal and reset form
+    if (await submitUpload(formData, 'Text file created successfully!')) {
       textModal?.close()
-    } catch (error) {
-      console.error('Creating text file:', error)
-      MsgBox.popup('fail', `Failed to create text file: ${error}`, MsgBox.Type.error)
     }
   }
 
   const showTextModal = () => {
-    if (!fileNameInput || ! fileContentTextarea || !fileExtensionInput) {
+    if (!fileNameInput || !fileContentTextarea || !fileExtensionInput) {
       return
     }
     fileNameInput.value = `webpviewer@${formatDate()}`
@@ -73,21 +103,29 @@ const Comp: Component = () => {
 
   return (
     <>
+      {/* 文件 input 不能嵌套在触发元素中，否则 programmatic click 会冒泡并再次触发打开逻辑。 */}
+      <input ref={fileInput} type="file" onChange={handleFileChange} hidden />
+
       <div class="fixed right-[5%] bottom-[5%] flex flex-col gap-2">
-        <div
-          class='size-16 rounded-full bg-[#ff9e61] text-3xl text-white flex items-center justify-center z-10 hover:cursor-pointer hover:bg-green-500'
-          onClick={() => document.getElementById('fileInput')?.click()}
+        <button
+          type="button"
+          class="size-16 rounded-full bg-[#ff9e61] text-3xl text-white flex items-center justify-center z-10 hover:cursor-pointer hover:bg-green-500 disabled:cursor-wait disabled:opacity-60"
+          onClick={openFileDialog}
+          disabled={isUploading()}
+          aria-label="Upload file"
         >
           +
-          <input id="fileInput" type="file" onChange={handleFileChange} hidden />
-        </div>
+        </button>
 
-        <div
-          class='size-16 rounded-full bg-[#ff7361] text-3xl text-white flex items-center justify-center z-10 hover:cursor-pointer hover:bg-green-500'
+        <button
+          type="button"
+          class="size-16 rounded-full bg-[#ff7361] text-3xl text-white flex items-center justify-center z-10 hover:cursor-pointer hover:bg-green-500 disabled:cursor-wait disabled:opacity-60"
           onClick={showTextModal}
+          disabled={isUploading()}
+          aria-label="Create text file"
         >
           T
-        </div>
+        </button>
       </div>
 
       <dialog ref={textModal} class="fixed w-full md:w-5/12 top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2">
@@ -126,14 +164,18 @@ const Comp: Component = () => {
           </div>
           <div class="flex justify-end space-x-2">
             <button
-              class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
+              type="button"
+              class="bg-green-500 hover:bg-green-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline disabled:cursor-wait disabled:opacity-60"
               onClick={createTextFile}
+              disabled={isUploading()}
             >
               Create
             </button>
             <button
+              type="button"
               class="bg-gray-500 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline"
               onClick={() => textModal?.close()}
+              disabled={isUploading()}
             >
               Cancel
             </button>

@@ -544,7 +544,7 @@ const Comp: Component<{ hidden?: boolean }> = (props) => {
           </p>
         }</For>
       </section>
-      <FileUploader></FileUploader>
+      <FileUploader onUploadComplete={fileAction.refetch}></FileUploader>
     </aside>
   )
 }
