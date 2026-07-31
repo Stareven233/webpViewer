@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -186,20 +187,26 @@ func resolveLinkTarget(filePath string) (linkTarget, error) {
 			return linkTarget{}, fmt.Errorf("Windows shortcut files are unsupported on %s", runtime.GOOS)
 		}
 
-		// 通过环境变量传入路径，避免快捷方式名称被拼入 PowerShell 脚本造成命令注入。
+		// 路径通过环境变量传入，避免快捷方式名称被拼入 PowerShell 脚本造成命令注入。
+		// PowerShell 5.1 的标准输出仍受当前控制台代码页影响，直接输出中文会变成乱码。
+		// 因此先用 UTF-8 编码再 Base64 输出，Go 端解码后可稳定保留所有 Unicode 路径。
 		command := exec.Command(
 			"powershell",
 			"-NoProfile",
 			"-NonInteractive",
 			"-ExecutionPolicy", "Bypass",
-			"-Command", "$shortcut = (New-Object -ComObject WScript.Shell).CreateShortcut($env:WEBP_VIEWER_SHORTCUT); [Console]::Out.Write($shortcut.TargetPath)",
+			"-Command", "$shortcut = (New-Object -ComObject WScript.Shell).CreateShortcut($env:WEBP_VIEWER_SHORTCUT); $bytes = [Text.Encoding]::UTF8.GetBytes([string]$shortcut.TargetPath); [Console]::Out.Write([Convert]::ToBase64String($bytes))",
 		)
 		command.Env = append(os.Environ(), "WEBP_VIEWER_SHORTCUT="+filePath)
 		output, commandErr := command.Output()
 		if commandErr != nil {
 			return linkTarget{}, fmt.Errorf("read Windows shortcut target: %w", commandErr)
 		}
-		targetPath = strings.TrimSpace(string(output))
+		decodedTargetPath, decodeErr := base64.StdEncoding.DecodeString(strings.TrimSpace(string(output)))
+		if decodeErr != nil {
+			return linkTarget{}, fmt.Errorf("decode Windows shortcut target: %w", decodeErr)
+		}
+		targetPath = string(decodedTargetPath)
 		if targetPath == "" {
 			return linkTarget{}, fmt.Errorf("Windows shortcut has no local target")
 		}

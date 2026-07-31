@@ -114,12 +114,17 @@ func TestResolveLinkTargetFollowsWindowsShortcut(t *testing.T) {
 	}
 
 	dir := t.TempDir()
-	targetPath := filepath.Join(dir, "actual.txt")
+	// 目标和快捷方式均使用中文，确保 PowerShell 到 Go 的路径传递不依赖当前控制台代码页。
+	targetDir := filepath.Join(dir, "中文目录")
+	if err := os.Mkdir(targetDir, 0o700); err != nil {
+		t.Fatalf("create Unicode target directory: %v", err)
+	}
+	targetPath := filepath.Join(targetDir, "真实文件.md")
 	if err := os.WriteFile(targetPath, []byte("target"), 0o600); err != nil {
 		t.Fatalf("write shortcut target: %v", err)
 	}
 
-	shortcutPath := filepath.Join(dir, "actual shortcut.lnk")
+	shortcutPath := filepath.Join(dir, "中文快捷方式.lnk")
 	command := exec.Command(
 		"powershell",
 		"-NoProfile",

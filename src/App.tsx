@@ -48,7 +48,7 @@ const App: Component = () => {
       tabindex={1}
     >
       <FileExplorer hidden={viewID() !== 0}></FileExplorer>
-      <DataPanel hidden={viewID() !== 1}></DataPanel>
+      <DataPanel hidden={viewID() !== 1} onShowExplorer={() => setviewID(0)}></DataPanel>
       <MsgBox.Comp></MsgBox.Comp>
     </main>
   )

@@ -51,7 +51,7 @@ const showPanels = (file: NoeFile) => {
   return () => <p class='text-2xl'>该文件暂不支持浏览: {file.toString()}</p>
 }
 
-const Comp: Component<{ hidden?: boolean }> = (props) => {
+const Comp: Component<{ hidden?: boolean, onShowExplorer?: () => void }> = (props) => {
   const { store, setStore } = neoStore
   const maxSize = config.maxFileSize
   const [hasHeader, setHasHeader] = createSignal(true)
@@ -119,7 +119,13 @@ const Comp: Component<{ hidden?: boolean }> = (props) => {
     if (!target) {
       return
     }
-    window.location.hash = target.isDirectory ? `${target.path}/` : target.path
+    if (target.isDirectory) {
+      // 目录目标应立即回到浏览器视图，再由 hashchange 驱动目录刷新。
+      props.onShowExplorer?.()
+      window.location.hash = `${target.path}/`
+      return
+    }
+    window.location.hash = target.path
   }
 
   return (
