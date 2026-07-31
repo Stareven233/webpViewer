@@ -159,6 +159,65 @@ func listComputerRoot() []map[string]any {
 	})
 }
 
+// linkTarget 是链接文件解析后返回给前端的目标信息。路径统一转成“/”，
+// 以匹配前端路由和 URL hash 使用的跨平台路径表示。
+type linkTarget struct {
+	Path        string `json:"path"`
+	IsDirectory bool   `json:"isDirectory"`
+}
+
+// resolveLinkTarget 统一支持两类本地链接：文件系统符号链接，以及 Windows .lnk 快捷方式。
+// .lnk 的解析必须在服务端执行，浏览器无法读取 Windows Shell 的快捷方式元数据。
+func resolveLinkTarget(filePath string) (linkTarget, error) {
+	linkInfo, err := os.Lstat(filePath)
+	if err != nil {
+		return linkTarget{}, fmt.Errorf("read link metadata: %w", err)
+	}
+
+	var targetPath string
+	switch {
+	case linkInfo.Mode()&os.ModeSymlink != 0:
+		targetPath, err = filepath.EvalSymlinks(filePath)
+		if err != nil {
+			return linkTarget{}, fmt.Errorf("resolve symbolic link: %w", err)
+		}
+	case strings.EqualFold(filepath.Ext(filePath), ".lnk"):
+		if runtime.GOOS != "windows" {
+			return linkTarget{}, fmt.Errorf("Windows shortcut files are unsupported on %s", runtime.GOOS)
+		}
+
+		// 通过环境变量传入路径，避免快捷方式名称被拼入 PowerShell 脚本造成命令注入。
+		command := exec.Command(
+			"powershell",
+			"-NoProfile",
+			"-NonInteractive",
+			"-ExecutionPolicy", "Bypass",
+			"-Command", "$shortcut = (New-Object -ComObject WScript.Shell).CreateShortcut($env:WEBP_VIEWER_SHORTCUT); [Console]::Out.Write($shortcut.TargetPath)",
+		)
+		command.Env = append(os.Environ(), "WEBP_VIEWER_SHORTCUT="+filePath)
+		output, commandErr := command.Output()
+		if commandErr != nil {
+			return linkTarget{}, fmt.Errorf("read Windows shortcut target: %w", commandErr)
+		}
+		targetPath = strings.TrimSpace(string(output))
+		if targetPath == "" {
+			return linkTarget{}, fmt.Errorf("Windows shortcut has no local target")
+		}
+	default:
+		return linkTarget{}, fmt.Errorf("file is not a supported local link")
+	}
+
+	targetInfo, err := os.Stat(targetPath)
+	if err != nil {
+		return linkTarget{}, fmt.Errorf("read link target: %w", err)
+	}
+
+	return linkTarget{
+		Path:        filepath.ToSlash(targetPath),
+		IsDirectory: targetInfo.IsDir(),
+	}, nil
+}
+
 // saveUploadedFile 会先将完整内容写入目标目录内的临时文件，再替换正式文件。
 // 这样首个请求中断或写入失败时不会留下残缺文件，后续重试也不会误以为修复了上传。
 func saveUploadedFile(dir string, file *multipart.FileHeader) error {
@@ -257,26 +316,51 @@ func main() {
 
 		var fileArr []map[string]any
 		for _, file := range files {
-			// filePath := filepath.Join(pwd, file.Name())
-			// stat, err := os.Lstat(filePath)
-			stat, err := file.Info()
+			filePath := filepath.Join(pwd, file.Name())
+			linkInfo, err := os.Lstat(filePath)
 			if err != nil {
-				log.Printf("Error reading file stats: %v", err)
+				log.Printf("Error reading link metadata: %v", err)
 				continue
 			}
 
+			// Stat 会跟随符号链接，因此链接到目录时仍可作为目录进入；
+			// 若链接已失效，则保留其自身信息，使前端仍可展示错误状态而不是静默消失。
+			stat, err := os.Stat(filePath)
+			if err != nil {
+				stat = linkInfo
+			}
+			// 符号链接指向目录时也按“链接文件”展示，用户可在 DataPanel 中查看并跳转，
+			// 而不是误把链接目录当作真实目录直接进入。
+			isLink := linkInfo.Mode()&os.ModeSymlink != 0 || strings.EqualFold(filepath.Ext(file.Name()), ".lnk")
+
 			fileInfo := map[string]any{
-				"name":  file.Name(),
-				"size":  stat.Size(),
-				"mtime": stat.ModTime().UnixMilli(),
-				// TODO 更好的文件类型表示
-				"isFile":      !file.IsDir(),
-				"isDirectory": file.IsDir(),
+				"name":        file.Name(),
+				"size":        stat.Size(),
+				"mtime":       stat.ModTime().UnixMilli(),
+				"isFile":      isLink || !stat.IsDir(),
+				"isDirectory": !isLink && stat.IsDir(),
+				"isLink":      isLink,
 			}
 			fileArr = append(fileArr, fileInfo)
 		}
 
 		return c.JSON(fileArr)
+	})
+
+	// Resolve a local link without exposing this host's paths for ordinary files.
+	// Only .lnk files and filesystem symbolic links can return a target.
+	app.Get("/link-target", func(c fiber.Ctx) error {
+		pwd := c.Query("dir")
+		name := c.Query("name")
+		if pwd == "" || name == "" {
+			return c.Status(fiber.StatusBadRequest).SendString("Missing 'dir' or 'name' query parameter")
+		}
+
+		target, err := resolveLinkTarget(filepath.Join(pwd, name))
+		if err != nil {
+			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"message": err.Error()})
+		}
+		return c.JSON(target)
 	})
 
 	// Handle file requests

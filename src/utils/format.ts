@@ -7,15 +7,18 @@ export class NoeFile {
   public mtime: Date
   public size: FileSize
   public type: FileType
+  /** 文件系统符号链接；Windows .lnk 由扩展名识别。 */
+  public isLink: boolean
   public url?: string
   public blob?: Resource<Blob>
   public blobText?: Resource<string>
 
-  constructor(dir:string='', name:string='', mtime:number=0, size:number|FileSize=-1, isFile:boolean=false, isDirectory:boolean=false) {
+  constructor(dir:string='', name:string='', mtime:number=0, size:number|FileSize=-1, isFile:boolean=false, isDirectory:boolean=false, isLink:boolean=false) {
     this.dir = dir
     this.name = name
     this.mtime = new Date(mtime)
     this.size = typeof size === 'number' ? new FileSize(size) : size
+    this.isLink = isLink
     if (isDirectory) {
       this.type = FileType.directory
     } else {

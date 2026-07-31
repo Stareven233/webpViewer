@@ -20,6 +20,20 @@ export const constructDownloadURL = (file: NoeFile) => {
   return url
 }
 
+export type LinkTarget = {
+  path: string
+  isDirectory: boolean
+}
+
+/** 解析 Windows .lnk 或文件系统符号链接的本地目标。 */
+export const getLinkTarget = async (dir: string, name: string): Promise<LinkTarget> => {
+  const response = await fetch(`${prefix}/link-target?dir=${encodeURIComponent(dir)}&name=${encodeURIComponent(name)}`)
+  if (!response.ok) {
+    throw new Error(await response.text())
+  }
+  return response.json()
+}
+
 // export const getFile = async (path: string) => await fetch(`${prefix}/pwd/${path}`)
 export const getBlob = async (file: NoeFile) => {
   let blob: Blob

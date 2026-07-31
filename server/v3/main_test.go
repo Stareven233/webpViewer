@@ -6,7 +6,9 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"os/exec"
 	"path/filepath"
+	"runtime"
 	"testing"
 )
 
@@ -66,5 +68,77 @@ func TestSaveUploadedFileWritesCompleteFileAndReplacesExistingContent(t *testing
 func TestSaveUploadedFileRejectsEmptyDestination(t *testing.T) {
 	if err := saveUploadedFile("", newUploadFileHeader(t, "file.txt", "content")); err == nil {
 		t.Fatal("expected an empty destination to be rejected")
+	}
+}
+
+func TestResolveLinkTargetFollowsSymbolicLink(t *testing.T) {
+	dir := t.TempDir()
+	targetPath := filepath.Join(dir, "actual.txt")
+	if err := os.WriteFile(targetPath, []byte("target"), 0o600); err != nil {
+		t.Fatalf("write target: %v", err)
+	}
+
+	linkPath := filepath.Join(dir, "shortcut")
+	if err := os.Symlink(targetPath, linkPath); err != nil {
+		// Windows machines without Developer Mode or the symlink privilege cannot create
+		// a test link. The production resolver remains covered on capable hosts.
+		t.Skipf("create symbolic link: %v", err)
+	}
+
+	target, err := resolveLinkTarget(linkPath)
+	if err != nil {
+		t.Fatalf("resolve symbolic link: %v", err)
+	}
+	if target.Path != filepath.ToSlash(targetPath) {
+		t.Fatalf("unexpected target path: got %q, want %q", target.Path, filepath.ToSlash(targetPath))
+	}
+	if target.IsDirectory {
+		t.Fatal("file target was reported as a directory")
+	}
+}
+
+func TestResolveLinkTargetRejectsRegularFile(t *testing.T) {
+	filePath := filepath.Join(t.TempDir(), "regular.txt")
+	if err := os.WriteFile(filePath, []byte("not a link"), 0o600); err != nil {
+		t.Fatalf("write regular file: %v", err)
+	}
+
+	if _, err := resolveLinkTarget(filePath); err == nil {
+		t.Fatal("expected a regular file to be rejected as a link")
+	}
+}
+
+func TestResolveLinkTargetFollowsWindowsShortcut(t *testing.T) {
+	if runtime.GOOS != "windows" {
+		t.Skip("Windows shortcut files are only available on Windows")
+	}
+
+	dir := t.TempDir()
+	targetPath := filepath.Join(dir, "actual.txt")
+	if err := os.WriteFile(targetPath, []byte("target"), 0o600); err != nil {
+		t.Fatalf("write shortcut target: %v", err)
+	}
+
+	shortcutPath := filepath.Join(dir, "actual shortcut.lnk")
+	command := exec.Command(
+		"powershell",
+		"-NoProfile",
+		"-NonInteractive",
+		"-Command", "$shortcut = (New-Object -ComObject WScript.Shell).CreateShortcut($env:WEBP_VIEWER_SHORTCUT); $shortcut.TargetPath = $env:WEBP_VIEWER_TARGET; $shortcut.Save()",
+	)
+	command.Env = append(os.Environ(), "WEBP_VIEWER_SHORTCUT="+shortcutPath, "WEBP_VIEWER_TARGET="+targetPath)
+	if output, err := command.CombinedOutput(); err != nil {
+		t.Fatalf("create Windows shortcut: %v: %s", err, output)
+	}
+
+	target, err := resolveLinkTarget(shortcutPath)
+	if err != nil {
+		t.Fatalf("resolve Windows shortcut: %v", err)
+	}
+	if target.Path != filepath.ToSlash(targetPath) {
+		t.Fatalf("unexpected shortcut target path: got %q, want %q", target.Path, filepath.ToSlash(targetPath))
+	}
+	if target.IsDirectory {
+		t.Fatal("file shortcut target was reported as a directory")
 	}
 }

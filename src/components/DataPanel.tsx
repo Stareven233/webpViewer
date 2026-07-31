@@ -62,6 +62,12 @@ const Comp: Component<{ hidden?: boolean }> = (props) => {
   const currentFile = () => store.currentFile
   const hasSelectedFile = () => currentFile().type === FileType.file && Boolean(currentFile().name)
   const [blob] = createResource(currentFile, requests.getBlob)
+  // 链接的目标只能由本机后端解析；普通文件不发额外请求。
+  const isLocalLink = () => currentFile().isLink || currentFile().extname().toLowerCase() === 'lnk'
+  const [linkTarget] = createResource(
+    () => isLocalLink() ? [currentFile().dir, currentFile().name] as const : undefined,
+    ([dir, name]) => requests.getLinkTarget(dir, name),
+  )
   const [blobText] = createResource(blob, async currentBlob => {
     const size = new FileSize(currentBlob.size, maxSize.scale)
     if (!currentBlob.type.startsWith('text/') && size.value > maxSize.value) {
@@ -104,6 +110,18 @@ const Comp: Component<{ hidden?: boolean }> = (props) => {
     setTimeout(() => setCopyStatus(''), 2000)
   }
 
+  /**
+   * 沿用文件浏览器的 hash 路由：目标为文件时自动在所在目录选中它，
+   * 目标为目录时补上末尾斜杠，让路由将其识别为目录而不是文件名。
+   */
+  const jumpToLinkTarget = () => {
+    const target = linkTarget()
+    if (!target) {
+      return
+    }
+    window.location.hash = target.isDirectory ? `${target.path}/` : target.path
+  }
+
   return (
     <section id='dataPanel' ref={panel} classList={{ hidden: props.hidden }} class='relative w-full h-full text-center'>
       <Show
@@ -139,6 +157,16 @@ const Comp: Component<{ hidden?: boolean }> = (props) => {
             >
               下载
             </a>
+            <Show when={isLocalLink()}>
+              <button
+                class='rounded-md px-2 py-1 text-xs text-gray-600 hover:bg-gray-100 hover:text-green-600 disabled:cursor-not-allowed disabled:text-gray-400 disabled:hover:bg-transparent'
+                disabled={linkTarget.loading || !linkTarget()}
+                title={linkTarget()?.path ?? (linkTarget.loading ? '正在解析链接目标' : '链接目标不可用')}
+                onClick={jumpToLinkTarget}
+              >
+                {linkTarget.loading ? '解析中…' : linkTarget() ? '跳转' : '链接不可用'}
+              </button>
+            </Show>
             <button
               class='rounded-md bg-green-600 px-2 py-1 text-xs text-white shadow-sm hover:bg-green-700 cursor-pointer'
               onClick={copy2Clipboard}

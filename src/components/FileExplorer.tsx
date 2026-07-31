@@ -40,7 +40,7 @@ const resolveDir = async (dir: string): Promise<NoeFile[]> => {
     MsgBox.popup('error', JSON.stringify(res), MsgBox.Type.error)
     return []
   }
-  const ret: NoeFile[] = res.map((item: any) => new NoeFile(dir, item.name, item.mtime, item.size, item.isFile, item.isDirectory))
+  const ret: NoeFile[] = res.map((item: any) => new NoeFile(dir, item.name, item.mtime, item.size, item.isFile, item.isDirectory, item.isLink))
   // res.unshift(parentDir)
   return ret
 }
