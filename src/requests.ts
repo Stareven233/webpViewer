@@ -35,7 +35,12 @@ export const getLinkTarget = async (dir: string, name: string): Promise<LinkTarg
 }
 
 // export const getFile = async (path: string) => await fetch(`${prefix}/pwd/${path}`)
-export const getBlob = async (file: NoeFile) => {
+/**
+ * 读取文件二进制内容。
+ * signal 用于在用户快速切换文件时中止上一个仍在传输的大文件请求，
+ * 避免后台下载持续占用连接，导致后续文件“迟迟出不来”。
+ */
+export const getBlob = async (file: NoeFile, signal?: AbortSignal) => {
   let blob: Blob
 
   if (file.type !== FileType.file && file.size.value < 0) {
@@ -50,7 +55,7 @@ export const getBlob = async (file: NoeFile) => {
     // encode以避免#%等符号出现在文件名导致的问题，express默认进行decode
     const url = constructFileURL(file)
     // console.log(file, size, url)
-    blob = await (await fetch(url)).blob()
+    blob = await (await fetch(url, { signal })).blob()
   }
   // console.log(filename, blob.type)
   return blob

@@ -1,4 +1,4 @@
-import { Setter } from 'solid-js'
+import { Resource } from 'solid-js'
 import type { NoeFile } from './format.ts'
 
 
@@ -41,13 +41,22 @@ const copy = async (text: string): Promise<boolean> =>  {
   return false
 }
 
+/** 读取资源值；资源处于 errored 状态时读取会抛异常，这里降级为 undefined。 */
+const safeRead = <T,>(resource?: Resource<T>): T | undefined => {
+  if (!resource || resource.state === 'errored') {
+    return undefined
+  }
+  return resource()
+}
+
 export const copyFileToClipboard = async (file: NoeFile): Promise<string> => {
   try {
     let contentToCopy = ''
     // 根据文件类型决定复制的内容
-    if (file.blobText && typeof file.blobText() === 'string') {
+    const text = safeRead(file.blobText)
+    if (typeof text === 'string') {
       // 如果是文本内容，直接复制文本
-      contentToCopy = file.blobText() ?? ''
+      contentToCopy = text
     } else if (file.url) {
       // 如果是文件 URL，则复制 URL
       contentToCopy = file.url

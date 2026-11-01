@@ -34,10 +34,13 @@ const COMPUTER_LABEL = '设备'
 
 const resolveDir = async (dir: string): Promise<NoeFile[]> => {
   // console.log('dir :>> ', dir)
-  let res = await listDir(dir)
-  if ('errno' in res) {
-    console.error('error:', res)
-    MsgBox.popup('error', JSON.stringify(res), MsgBox.Type.error)
+  const res = await listDir(dir)
+  // 空目录或异常响应可能是 null（非数组），直接当作无文件，避免对 null 做 in 运算抛错。
+  if (!Array.isArray(res)) {
+    if (res && 'errno' in res) {
+      console.error('error:', res)
+      MsgBox.popup('error', JSON.stringify(res), MsgBox.Type.error)
+    }
     return []
   }
   const ret: NoeFile[] = res.map((item: any) => new NoeFile(dir, item.name, item.mtime, item.size, item.isFile, item.isDirectory, item.isLink))

@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 )
 
 type Resource struct {
@@ -14,12 +15,33 @@ type Resource struct {
 
 var (
 	MHTMLENDPOINT = "/mhtml-resources"
-	ResourceCache = make(map[string]Resource)
+	// Fiber 的 handler 是并发执行的，ResourceCache 必须加锁：
+	// 并发写普通 map 会触发 Go 的 fatal error 直接杀掉进程，让页面彻底无法加载。
+	resourceCacheMu sync.RWMutex
+	ResourceCache   = make(map[string]Resource)
 )
 
+func cacheGet(key string) (Resource, bool) {
+	resourceCacheMu.RLock()
+	defer resourceCacheMu.RUnlock()
+	res, ok := ResourceCache[key]
+	return res, ok
+}
+
+func cacheSet(key string, res Resource) {
+	resourceCacheMu.Lock()
+	defer resourceCacheMu.Unlock()
+	ResourceCache[key] = res
+}
+
+func cacheReset() {
+	resourceCacheMu.Lock()
+	defer resourceCacheMu.Unlock()
+	ResourceCache = make(map[string]Resource)
+}
+
 func ParseMHTMLIndex(filePath string) ([]byte, error) {
-	index, exists := ResourceCache[filePath]
-	if exists {
+	if index, exists := cacheGet(filePath); exists {
 		return index.Content, nil
 	}
 	err := Parse(filePath)
@@ -27,7 +49,11 @@ func ParseMHTMLIndex(filePath string) ([]byte, error) {
 		return []byte(""), fmt.Errorf("failed to parse file: %v", err)
 	}
 
-	return ResourceCache[filePath].Content, nil
+	index, exists := cacheGet(filePath)
+	if !exists {
+		return []byte(""), fmt.Errorf("parsed mhtml but index is missing")
+	}
+	return index.Content, nil
 }
 
 func CheckHTMLResource(filePath string) (string, string, error) {

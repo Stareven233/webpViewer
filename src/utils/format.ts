@@ -39,8 +39,13 @@ export class NoeFile {
   }
 
   public mime() {
-    return this.blob?.()?.type
-    // return this.blob()?.type.split('/')[0]
+    try {
+      return this.blob?.()?.type
+      // return this.blob()?.type.split('/')[0]
+    } catch {
+      // 资源处于 errored 状态时读取会抛异常；MIME 只是展示信息，不应中断渲染或复制流程。
+      return undefined
+    }
   }
 
   public extname() {

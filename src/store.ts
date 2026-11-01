@@ -7,6 +7,9 @@ export const config = {
   // 默认根目录：'' (COMPUTER_ROOT) 表示"设备"磁盘选择视图
   defaultRoot: NoeFile.COMPUTER_ROOT,
   maxFileSize: new FileSize(200, 'MB'),
+  // 可预览的扩展名白名单：判定先于网络请求，不在名单里的文件（如 mp4）不会下载任何内容。
+  extOfImage: new Set(['webp', 'jpg', 'jpeg', 'jfif', 'png', 'gif', 'bmp', 'svg', 'avif', 'ico', 'tif', 'tiff']),
+  extOfHtml: new Set(['html', 'htm', 'mhtml', 'mht']),
   extOfText: new Set(['ass', 'srt', 'txt', 'json', 'xml', 'css', 'js', 'ts', 'py', 'java', 'php', 'sh', 'bat', 'cmd', 'ps1', 'md', 'html', 'htm', 'vue', 'jsx', 'tsx', 'c', 'cpp', 'h', 'hpp', 'h', 'log', 'ini', 'conf', 'yaml', ]),
 }
 

@@ -212,7 +212,9 @@ func main() {
 			return c.Status(fiber.StatusInternalServerError).SendString(err.Error())
 		}
 
-		var fileArr []map[string]any
+		// 预分配非 nil 切片：空目录必须返回 []，
+		// 否则 encoding/json 会把 nil slice 序列化成 null，前端拿到 null 后无法遍历。
+		fileArr := make([]map[string]any, 0, len(files))
 		for _, file := range files {
 			filePath := filepath.Join(pwd, file.Name())
 			linkInfo, err := os.Lstat(filePath)
@@ -322,7 +324,7 @@ func main() {
 		if err != nil {
 			return c.Status(fiber.StatusBadRequest).SendString(err.Error())
 		}
-		result, exists := ResourceCache[key]
+		result, exists := cacheGet(key)
 		// fmt.Println(result, exists, key)
 		if !exists {
 			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"msg": "not found"})
@@ -333,7 +335,7 @@ func main() {
 
 	// Clear MHTML resource cache
 	app.Delete(MHTMLENDPOINT, func(c fiber.Ctx) error {
-		ResourceCache = make(map[string]Resource)
+		cacheReset()
 		return c.JSON(fiber.Map{"msg": "ok"})
 	})
 

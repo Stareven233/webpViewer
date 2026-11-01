@@ -203,7 +203,7 @@ func Parse(mhtPath string) error {
 		ref := part.header.Get("Content-Location")
 		uri := fmt.Sprintf("%s@%d-%s", uri_base, idx, getPathBase(ref, false))
 		ref_maps[ref] = fmt.Sprintf("%s/%s", MHTMLENDPOINT, uri)
-		ResourceCache[uri] = Resource{contentType, part.body}
+		cacheSet(uri, Resource{contentType, part.body})
 	}
 
 	if html == nil {
@@ -222,6 +222,9 @@ func Parse(mhtPath string) error {
 		e.Remove()
 	})
 	txt, err := doc.Html()
-	ResourceCache[mhtPath] = Resource{"text/html", []byte(txt)}
-	return err
+	if err != nil {
+		return err
+	}
+	cacheSet(mhtPath, Resource{"text/html", []byte(txt)})
+	return nil
 }
