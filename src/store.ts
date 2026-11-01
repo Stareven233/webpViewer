@@ -23,6 +23,8 @@ function _createStore() {
     currentFile: new NoeFile(),
     // 0不动，其余表示移动步数
     nextStep: 0,
+    // 文件信息悬浮栏是否显示：全局状态，切换文件不重置，由用户主动开关决定
+    showFileHeader: true,
   })
   return {store, setStore}
 }

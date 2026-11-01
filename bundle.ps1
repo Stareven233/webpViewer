@@ -33,7 +33,7 @@ try {
         throw "dist directory was not created: $DistDirectory"
     }
 
-    $ArchiveName = "webpviewer v$Version.zip"
+    $ArchiveName = "webpviewer-v$Version-win_amd64.zip"
     $ArchivePath = Join-Path $DistDirectory $ArchiveName
     # 临时压缩包必须放在 dist 外部，避免压缩时把自身纳入源目录。
     $TempArchivePath = Join-Path $ProjectRoot $ArchiveName

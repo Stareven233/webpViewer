@@ -93,7 +93,6 @@ const Notice: Component<{ title: string, detail?: string, children?: any }> = pr
 
 const Comp: Component<{ hidden?: boolean, onShowExplorer?: () => void }> = (props) => {
   const { store, setStore } = neoStore
-  const [hasHeader, setHasHeader] = createSignal(true)
   const [copyStatus, setCopyStatus] = createSignal('')
   // 出错重试计数，作为资源 source 的一部分触发重新请求。
   const [retryTick, setRetryTick] = createSignal(0)
@@ -220,10 +219,13 @@ const Comp: Component<{ hidden?: boolean, onShowExplorer?: () => void }> = (prop
     return file
   }
 
+  // 悬浮栏显示状态放在 store 里，切换文件时保留用户的收起/展开选择。
+  const hasHeader = () => store.showFileHeader
+  const setHasHeader = (value: boolean) => setStore('showFileHeader', value)
+
   createEffect(() => {
-    // 文件切换时恢复信息栏并清空旧文件的复制反馈，避免状态串到下一份文件。
+    // 文件切换时清空旧文件的复制反馈，避免状态串到下一份文件。
     currentFile()
-    setHasHeader(true)
     setCopyStatus('')
     setMediaFailed(false)
   })
