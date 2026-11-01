@@ -20,6 +20,12 @@ export const constructDownloadURL = (file: NoeFile) => {
   return url
 }
 
+/**
+ * 流式 URL：后端按 Range 增量传输，供 <video>/<audio> 边下边播与拖动。
+ * 不经过 getBlob，因此不占内存、也不受 maxFileSize 限制。
+ */
+export const constructStreamURL = (file: NoeFile) => `${constructFileURL(file)}&stream=1`
+
 export type LinkTarget = {
   path: string
   isDirectory: boolean

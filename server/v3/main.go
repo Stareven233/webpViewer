@@ -284,6 +284,12 @@ func main() {
 			}
 			return c.Send(content)
 		}
+		// stream=1：按 Range 增量返回，供 <video>/<audio> 边下边播与拖动。
+		// 下载（download=1）优先于流式预览，二者语义互斥。
+		if c.Query("stream") != "" {
+			return serveStream(c, filePath, name)
+		}
+
 		ext := filepath.Ext(name)
 
 		switch ext {

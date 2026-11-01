@@ -11,7 +11,7 @@ import TouchEvent from '../utils/touch.ts'
 import { copyFileToClipboard } from '../utils/copy.ts'
 
 
-type PreviewKind = 'html' | 'image' | 'text' | 'unsupported'
+type PreviewKind = 'html' | 'image' | 'text' | 'video' | 'audio' | 'unsupported'
 
 const ImagePanel: Component<{ url?: string, name: string }> = props => {
   return <img class='object-contain object-center mx-auto max-h-[96vh]' src={props.url} alt={props.name} />
@@ -27,6 +27,43 @@ const TextPanel: Component<{ text: string }> = props => {
 
 const HTMLPanel: Component<{ html: string }> = props => {
   return <iframe srcdoc={props.html} height='100%' width='100%' class='w-full' title='文件预览'></iframe>
+}
+
+/**
+ * 视频/音频播放器。src 指向后端的 stream=1 端点，由浏览器自己发 Range 请求，
+ * 因此打开与拖动都只传输需要的片段，无需等整份文件下载完。
+ */
+const MediaPanel: Component<{
+  kind: 'video' | 'audio'
+  url: string
+  name: string
+  onError: () => void
+}> = props => {
+  return (
+    <Show
+      when={props.kind === 'video'}
+      fallback={
+        <audio
+          class='w-full max-w-3xl px-4'
+          src={props.url}
+          controls
+          preload='metadata'
+          title={props.name}
+          onError={props.onError}
+        />
+      }
+    >
+      <video
+        class='max-h-[96vh] max-w-full object-contain'
+        src={props.url}
+        controls
+        preload='metadata'
+        playsinline
+        title={props.name}
+        onError={props.onError}
+      />
+    </Show>
+  )
 }
 
 /**
@@ -70,7 +107,7 @@ const Comp: Component<{ hidden?: boolean, onShowExplorer?: () => void }> = (prop
 
   /**
    * 预览类型完全由扩展名判定，必须先于网络请求得出：
-   * 不支持的格式（如 mp4）根本不发请求，避免几 GB 文件被整份下载。
+   * 不在白名单里的格式根本不发请求，避免超大文件被整份下载。
    */
   const previewKind = createMemo<PreviewKind>(() => {
     if (!hasSelectedFile()) {
@@ -86,8 +123,20 @@ const Comp: Component<{ hidden?: boolean, onShowExplorer?: () => void }> = (prop
     if (config.extOfText.has(ext)) {
       return 'text'
     }
+    if (config.extOfVideo.has(ext)) {
+      return 'video'
+    }
+    if (config.extOfAudio.has(ext)) {
+      return 'audio'
+    }
     return 'unsupported'
   })
+
+  /** 媒体走流式端点，既不创建 Blob 资源，也不受 maxFileSize 限制。 */
+  const isMediaKind = () => {
+    const kind = previewKind()
+    return kind === 'video' || kind === 'audio'
+  }
 
   /**
    * 读取文件内容。切换文件时中止上一次仍在传输的请求，
@@ -99,12 +148,16 @@ const Comp: Component<{ hidden?: boolean, onShowExplorer?: () => void }> = (prop
     loadController = controller
     return await requests.getBlob(file, controller.signal)
   }
-  // 只有可预览的类型才拉取内容；不支持的文件只保留悬浮栏里的下载入口。
+  // 只有可预览且需要完整内容的类型才拉取内容；媒体走流式传输，不支持的文件只保留悬浮栏里的下载入口。
   const [blob] = createResource(
-    () => previewKind() !== 'unsupported' ? [currentFile(), retryTick()] as const : undefined,
+    () => previewKind() !== 'unsupported' && !isMediaKind() ? [currentFile(), retryTick()] as const : undefined,
     ([file]) => fetchBlob(file),
   )
   onCleanup(() => loadController?.abort())
+
+  // 播放失败时展示降级提示；切换文件时在下方 effect 中重置。
+  const [mediaFailed, setMediaFailed] = createSignal(false)
+  const streamURL = () => requests.constructStreamURL(currentFile())
 
   /** errored 状态下直接读取资源会抛异常，这里统一收敛为 undefined。 */
   const safeBlob = () => blob.state === 'errored' ? undefined : blob()
@@ -172,6 +225,7 @@ const Comp: Component<{ hidden?: boolean, onShowExplorer?: () => void }> = (prop
     currentFile()
     setHasHeader(true)
     setCopyStatus('')
+    setMediaFailed(false)
   })
 
   const retryLoad = () => {
@@ -198,6 +252,37 @@ const Comp: Component<{ hidden?: boolean, onShowExplorer?: () => void }> = (prop
             下载文件
           </a>
         </Notice>
+      )
+    }
+
+    // 媒体直接用流式 URL 交给浏览器，不经过 blob 资源，因此要排在 loading/errored 判定之前。
+    if (isMediaKind()) {
+      const kind = previewKind() as 'video' | 'audio'
+      return (
+        <Show
+          when={!mediaFailed()}
+          fallback={
+            <Notice title='浏览器无法播放该文件' detail={`${currentFile().name} · ${currentFile().size.show()}`}>
+              <p class='text-xs text-gray-400'>可能是容器或编码不受支持，可下载后用本地播放器打开</p>
+              <button
+                class='mt-1 rounded-md border border-gray-200 px-3 py-1.5 text-xs text-gray-600 hover:bg-gray-50 cursor-pointer'
+                onClick={() => {
+                  // 重置错误态会重新挂载播放器，元素新建后自动重新拉流。
+                  setMediaFailed(false)
+                }}
+              >
+                重新加载
+              </button>
+            </Notice>
+          }
+        >
+          <MediaPanel
+            kind={kind}
+            url={streamURL()}
+            name={currentFile().name}
+            onError={() => setMediaFailed(true)}
+          />
+        </Show>
       )
     }
 
