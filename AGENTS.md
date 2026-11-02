@@ -13,4 +13,4 @@
 ## 架构
 **Stack** bun/bunx (no npm/npx) + SolidJS + TypeScript 前端，Go（Fiber）后端。
 
-注意，后端 只看 server/v3 ，老旧版本不要管不要看
+后端位于 `server/`（Go + Fiber v3）。

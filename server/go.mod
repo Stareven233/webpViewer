@@ -1,4 +1,4 @@
-module server-v3
+module webpviewer-server
 
 go 1.25.0
 

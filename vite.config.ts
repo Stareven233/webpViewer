@@ -38,7 +38,7 @@ export default defineConfig({
         // Go 会根据构建主机生成原生可执行文件；发布目录也使用对应平台的名称。
         // 显式指定 -o 可避免 Linux 依赖 Windows 的 .exe 文件名。
         const serverBinaryName = process.platform === 'win32' ? 'server.exe' : 'server'
-        const serverDirectory = path.resolve(__dirname, 'server/v3')
+        const serverDirectory = path.resolve(__dirname, 'server')
         const serverPath = distFile(serverBinaryName)
         console.log(`building ${serverBinaryName}...`)
         await execFilePromise('go', ['build', '-o', serverPath, '.'], { cwd: serverDirectory })

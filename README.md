@@ -61,7 +61,7 @@
 - [Bun](https://bun.sh/)
 - Go 1.25 或更高版本
 
-项目使用 Bun 管理前端依赖，使用 Go 编译 `server/v3` 后端。请在项目根目录执行：
+项目使用 Bun 管理前端依赖，使用 Go 编译 `server` 后端。请在项目根目录执行：
 
 ```sh
 bun install --frozen-lockfile
@@ -72,8 +72,8 @@ bun run build
 
 1. 构建 SolidJS 前端并写入 `dist`。
 2. 根据 `package.json` 生成 `dist/version.json`。
-3. 编译当前操作系统对应的 `server/v3` 原生服务端。
-4. 复制 `server/v3/config.yaml` 到 `dist/config.yaml`。
+3. 编译当前操作系统对应的 `server` 原生服务端。
+4. 复制 `server/config.yaml` 到 `dist/config.yaml`。
 
 构建完成后，必须进入 `dist` 目录运行服务端，使其能够读取同目录下的 `version.json` 和 `config.yaml`：
 
@@ -134,11 +134,11 @@ http://<电脑局域网IP>:23333/index
 
 ```sh
 bun run dev      # 启动 Vite 开发服务器
-bun run build    # 构建前端并编译 server/v3
+bun run build    # 构建前端并编译 server
 bun run serve    # 预览已构建的前端资源
 ```
 
-当前 Vite 开发服务器监听 `6628` 端口；开发模式下 API 代理配置在 `vite.config.ts` 中，后端服务需要与代理目标端口保持一致。生产构建不依赖 Vite 代理，由 `server/v3` 同时提供静态资源和文件 API。
+当前 Vite 开发服务器监听 `6628` 端口；开发模式下 API 代理配置在 `vite.config.ts` 中，后端服务需要与代理目标端口保持一致。生产构建不依赖 Vite 代理，由 `server` 同时提供静态资源和文件 API。
 
 ## 当前计划
 
