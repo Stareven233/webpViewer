@@ -229,6 +229,12 @@ export const sortOptions = [
   { type: SortType.RANDOM, label: '随机' }
 ]
 
+/**
+ * 文件名排序用的自然比较器：数字按数值大小比较（0,1,2 而非 0,1,10,100），
+ * 且忽略大小写与重音，行为对齐 Windows 资源管理器。
+ */
+const nameCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' })
+
 export const sortFiles = (files: NoeFile[], sortType: SortType): NoeFile[] => {
   if (!files) {
     return files
@@ -246,9 +252,9 @@ export const sortFiles = (files: NoeFile[], sortType: SortType): NoeFile[] => {
   
   switch (sortType) {
     case SortType.NAME_ASC:
-      return sortDirectoriesFirst((a, b) => a.name.localeCompare(b.name))
+      return sortDirectoriesFirst((a, b) => nameCollator.compare(a.name, b.name))
     case SortType.NAME_DESC:
-      return sortDirectoriesFirst((a, b) => b.name.localeCompare(a.name))
+      return sortDirectoriesFirst((a, b) => nameCollator.compare(b.name, a.name))
     case SortType.TIME_ASC:
       return sortDirectoriesFirst((a, b) => a.mtime.getTime() - b.mtime.getTime())
     case SortType.TIME_DESC:
