@@ -53,8 +53,12 @@ const MediaPanel: Component<{
         />
       }
     >
+      {/*
+        w-full + object-contain：分辨率小于视口的视频会被等比放大铺满可用宽度，
+        高度由 max-h 封顶；窗口缩放时随之重排，无需额外缩放控制。
+      */}
       <video
-        class='max-h-[96vh] max-w-full object-contain'
+        class='max-h-[96vh] w-full object-contain'
         src={props.url}
         controls
         preload='metadata'

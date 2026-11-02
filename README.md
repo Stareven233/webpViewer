@@ -133,9 +133,10 @@ http://<电脑局域网IP>:23333/index
 ## 开发命令
 
 ```sh
-bun run dev      # 启动 Vite 开发服务器
-bun run build    # 构建前端并编译 server
-bun run serve    # 预览已构建的前端资源
+bun run dev  # 启动 Vite 开发服务器
+bun run build  # 构建前端并编译 server
+bun run serve  # 预览已构建的前端资源
+./bundle.ps1  # 全量构建打包，产物位于dist/
 ```
 
 当前 Vite 开发服务器监听 `6628` 端口；开发模式下 API 代理配置在 `vite.config.ts` 中，后端服务需要与代理目标端口保持一致。生产构建不依赖 Vite 代理，由 `server` 同时提供静态资源和文件 API。
