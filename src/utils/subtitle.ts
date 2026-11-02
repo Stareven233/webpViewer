@@ -88,7 +88,8 @@ const srtToVTT = (source: string) => {
     }
     const [start, end] = lines[timeIndex].split('-->')
     const text = lines.slice(timeIndex + 1).join('\n').trim()
-    return `${toVTTTimecode(start)} --> ${toVTTTimecode(end)}\n${text}`
+    // SRT 正文同样需要 VTT 转义，否则 <...> 会被浏览器当标签整段吞掉。
+    return `${toVTTTimecode(start)} --> ${toVTTTimecode(end)}\n${escapeVTT(text)}`
   }).filter(Boolean)
 
   return `WEBVTT\n\n${body.join('\n\n')}\n`
