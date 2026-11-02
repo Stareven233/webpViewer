@@ -60,6 +60,8 @@ const titleOf = (path: string) => {
  * window.location.href = `#${hash}` 会触发hashchange事件，pushState不会
  */
 const navigateTo = (path: string, opts: { isFile?: boolean } = {}) => {
+  // 分隔符统一为 "/"：Windows 路径常带 "\"，会让面包屑、标题和 hash 的 "/" 解析全部失效。
+  path = path.replace(/\\/g, '/')
   if (!opts.isFile) {
     setStore('currentDir', () => path)
     // 换目录后旧的选中下标已失效
@@ -180,7 +182,8 @@ const Comp: Component<{ hidden?: boolean }> = (props) => {
     if (!hash) {
       return
     }
-    const raw = hash.slice(1)
+    // 手输或外部链接可能带 "\" 分隔符，先统一成 "/" 再拆分目录与文件名。
+    const raw = hash.slice(1).replace(/\\/g, '/')
     if (!raw) {
       setStore('currentDir', () => NoeFile.COMPUTER_ROOT)
       return
@@ -255,7 +258,8 @@ const Comp: Component<{ hidden?: boolean }> = (props) => {
 
   /** 提交地址栏输入；Esc 仅退出编辑，不会意外跳转目录。 */
   const commitPath = (rawPath: string) => {
-    let path = rawPath.trim()
+    // 地址栏允许粘贴 Windows 原生路径，统一成 "/" 后再比较和跳转（navigateTo 也会再统一一次）。
+    let path = rawPath.trim().replace(/\\/g, '/')
     setIsEditingPath(false)
     if (path === COMPUTER_LABEL || path === 'Computer' || path === '') {
       path = NoeFile.COMPUTER_ROOT
