@@ -9,6 +9,7 @@ import * as requests from '../requests.ts'
 import { FileType, NoeFile } from '../utils/format.ts'
 import TouchEvent from '../utils/touch.ts'
 import { copyFileToClipboard } from '../utils/copy.ts'
+import { loadLocalSubtitle, SubtitleTrack } from '../utils/subtitle.ts'
 
 
 type PreviewKind = 'html' | 'image' | 'text' | 'video' | 'audio' | 'unsupported'
@@ -36,9 +37,47 @@ const HTMLPanel: Component<{ html: string }> = props => {
 const MediaPanel: Component<{
   kind: 'video' | 'audio'
   url: string
+  dir: string
   name: string
   onError: () => void
 }> = props => {
+  // 只在视频场景探测字幕；探测失败返回 undefined，不阻塞播放。
+  const [subtitle, setSubtitle] = createSignal<SubtitleTrack>()
+  let subtitleURL: string | undefined
+
+  /** 切文件时先释放旧字幕 Blob，避免反复浏览时累积内存。 */
+  const applySubtitle = (next?: SubtitleTrack) => {
+    if (subtitleURL && subtitleURL !== next?.url) {
+      URL.revokeObjectURL(subtitleURL)
+      subtitleURL = undefined
+    }
+    if (next) {
+      subtitleURL = next.url
+    }
+    setSubtitle(next)
+  }
+
+  createEffect(() => {
+    if (props.kind !== 'video') {
+      applySubtitle(undefined)
+      return
+    }
+    const dir = props.dir
+    const name = props.name
+    // 目录/改名都视为换片，旧字幕立即失效，避免跟新闻视频错配。
+    applySubtitle(undefined)
+    let cancelled = false
+    loadLocalSubtitle(dir, name).then(track => {
+      if (!cancelled) {
+        applySubtitle(track)
+      }
+    })
+    onCleanup(() => {
+      cancelled = true
+    })
+  })
+  onCleanup(() => applySubtitle(undefined))
+
   return (
     <Show
       when={props.kind === 'video'}
@@ -65,7 +104,17 @@ const MediaPanel: Component<{
         playsinline
         title={props.name}
         onError={props.onError}
-      />
+      >
+        {/*
+          仅当探测到同名字幕时才挂 <track>：default 让字幕默认开启，
+          用户仍可在原生控件的字幕菜单里切换或关闭。
+        */}
+        <Show when={subtitle()}>
+          {(track) => (
+            <track kind='subtitles' src={track().url} label={track().label} default />
+          )}
+        </Show>
+      </video>
     </Show>
   )
 }
@@ -285,6 +334,7 @@ const Comp: Component<{ hidden?: boolean, onShowExplorer?: () => void }> = (prop
           <MediaPanel
             kind={kind}
             url={streamURL()}
+            dir={currentFile().dir}
             name={currentFile().name}
             onError={() => setMediaFailed(true)}
           />

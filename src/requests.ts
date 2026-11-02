@@ -42,6 +42,18 @@ export const getLinkTarget = async (dir: string, name: string): Promise<LinkTarg
 
 // export const getFile = async (path: string) => await fetch(`${prefix}/pwd/${path}`)
 /**
+ * 读取原始字节：字幕这类小文本需要自行判断编码（GBK/UTF-16 在中文 Windows 上很常见），
+ * 因此不能走 blob.text()，也不套 maxFileSize 限制。
+ */
+export const getFileBuffer = async (file: Pick<NoeFile, 'dir' | 'name'>) => {
+  const response = await fetch(constructFileURL(file as NoeFile))
+  if (!response.ok) {
+    throw new Error(`HTTP ${response.status}`)
+  }
+  return response.arrayBuffer()
+}
+
+/**
  * 读取文件二进制内容。
  * signal 用于在用户快速切换文件时中止上一个仍在传输的大文件请求，
  * 避免后台下载持续占用连接，导致后续文件“迟迟出不来”。
