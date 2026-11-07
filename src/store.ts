@@ -14,6 +14,8 @@ export const config = {
   // mov/mkv 属于“尽力而为”：多数浏览器只认 H.264/AAC，播放失败由 <video> 的 error 事件提示。
   extOfVideo: new Set(['mp4', 'm4v', 'mov', 'webm', 'ogv', 'ogg', 'mkv']),
   extOfAudio: new Set(['mp3', 'm4a', 'aac', 'flac', 'wav', 'opus', 'oga']),
+  // PDF 同样走 Range 流式传输，交给浏览器内置阅读器分页渲染。
+  extOfPdf: new Set(['pdf']),
   extOfText: new Set(['ass', 'srt', 'txt', 'json', 'xml', 'css', 'js', 'ts', 'py', 'java', 'php', 'sh', 'bat', 'cmd', 'ps1', 'md', 'html', 'htm', 'vue', 'jsx', 'tsx', 'c', 'cpp', 'h', 'hpp', 'h', 'log', 'ini', 'conf', 'yaml', ]),
 }
 

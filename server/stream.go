@@ -12,9 +12,10 @@ import (
 	"github.com/gofiber/fiber/v3"
 )
 
-// mediaContentTypes 覆盖前端白名单里的音视频容器。
+// mediaContentTypes 覆盖前端白名单里的音视频容器与 PDF。
 // Go 的内置 mime 表不含视频类型，系统 MIME 表缺失时会回退到 octet-stream，
 // 浏览器拿到错误类型就可能拒绝解码，因此这里显式兜底。
+// PDF 必须命中 application/pdf，否则浏览器的内置阅读器不会接管，只会触发下载。
 var mediaContentTypes = map[string]string{
 	".mp4":  "video/mp4",
 	".m4v":  "video/mp4",
@@ -30,6 +31,7 @@ var mediaContentTypes = map[string]string{
 	".wav":  "audio/wav",
 	".opus": "audio/ogg",
 	".oga":  "audio/ogg",
+	".pdf":  "application/pdf",
 }
 
 // contentTypeOf 按扩展名推断媒体类型；未注册的扩展名回退为通用二进制流。

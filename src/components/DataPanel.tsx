@@ -12,7 +12,7 @@ import { copyFileToClipboard } from '../utils/copy.ts'
 import { loadLocalSubtitle, SubtitleTrack } from '../utils/subtitle.ts'
 
 
-type PreviewKind = 'html' | 'image' | 'text' | 'video' | 'audio' | 'unsupported'
+type PreviewKind = 'html' | 'image' | 'text' | 'video' | 'audio' | 'pdf' | 'unsupported'
 
 const ImagePanel: Component<{ url?: string, name: string }> = props => {
   return <img class='object-contain object-center mx-auto max-h-[96vh]' src={props.url} alt={props.name} />
@@ -28,6 +28,34 @@ const TextPanel: Component<{ text: string }> = props => {
 
 const HTMLPanel: Component<{ html: string }> = props => {
   return <iframe srcdoc={props.html} height='100%' width='100%' class='w-full' title='文件预览'></iframe>
+}
+
+/**
+ * PDF 交给浏览器内置阅读器（Chrome/Edge/Firefox 均自带），
+ * src 指向 stream=1 端点，阅读器自己按 Range 请求分页，不整份下载、不受 maxFileSize 限制。
+ * 用 <object> 而非 <iframe>：浏览器无法内嵌 PDF 时会渲染 fallback 子节点。
+ * padded 用于让出顶部悬浮信息栏的高度，避免遮住阅读器自带的工具栏。
+ */
+const PDFPanel: Component<{ url: string, name: string, padded: boolean }> = props => {
+  return (
+    <object
+      class='h-full w-full'
+      classList={{ 'pt-14': props.padded }}
+      data={props.url}
+      type='application/pdf'
+      title={props.name}
+    >
+      <Notice title='浏览器无法内嵌显示 PDF' detail={`${props.name} · 可下载后用本地阅读器打开`}>
+        <a
+          class='text-xs text-gray-500 underline hover:text-green-600'
+          href={props.url}
+          download={props.name}
+        >
+          下载文件
+        </a>
+      </Notice>
+    </object>
+  )
 }
 
 /**
@@ -181,13 +209,16 @@ const Comp: Component<{ hidden?: boolean, onShowExplorer?: () => void }> = (prop
     if (config.extOfAudio.has(ext)) {
       return 'audio'
     }
+    if (config.extOfPdf.has(ext)) {
+      return 'pdf'
+    }
     return 'unsupported'
   })
 
-  /** 媒体走流式端点，既不创建 Blob 资源，也不受 maxFileSize 限制。 */
-  const isMediaKind = () => {
+  /** 媒体与 PDF 走流式端点，既不创建 Blob 资源，也不受 maxFileSize 限制。 */
+  const isStreamKind = () => {
     const kind = previewKind()
-    return kind === 'video' || kind === 'audio'
+    return kind === 'video' || kind === 'audio' || kind === 'pdf'
   }
 
   /**
@@ -202,7 +233,7 @@ const Comp: Component<{ hidden?: boolean, onShowExplorer?: () => void }> = (prop
   }
   // 只有可预览且需要完整内容的类型才拉取内容；媒体走流式传输，不支持的文件只保留悬浮栏里的下载入口。
   const [blob] = createResource(
-    () => previewKind() !== 'unsupported' && !isMediaKind() ? [currentFile(), retryTick()] as const : undefined,
+    () => previewKind() !== 'unsupported' && !isStreamKind() ? [currentFile(), retryTick()] as const : undefined,
     ([file]) => fetchBlob(file),
   )
   onCleanup(() => loadController?.abort())
@@ -310,8 +341,13 @@ const Comp: Component<{ hidden?: boolean, onShowExplorer?: () => void }> = (prop
       )
     }
 
+    // PDF 同样直接用流式 URL，交给浏览器内置阅读器分页加载。
+    if (kind === 'pdf') {
+      return <PDFPanel url={streamURL()} name={currentFile().name} padded={hasHeader()} />
+    }
+
     // 媒体直接用流式 URL 交给浏览器，不经过 blob 资源，因此要排在 loading/errored 判定之前。
-    if (isMediaKind()) {
+    if (isStreamKind()) {
       const kind = previewKind() as 'video' | 'audio'
       return (
         <Show
