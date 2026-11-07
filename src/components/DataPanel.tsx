@@ -164,9 +164,9 @@ const isWarnBlob = (content: Blob) => content.type === 'text/warn'
  */
 const Notice: Component<{ title: string, detail?: string, children?: any }> = props => (
   <div class='mx-auto flex max-w-md flex-col items-center gap-2 px-6 py-8 text-center text-sm text-gray-500'>
-    <p class='text-base font-medium text-gray-700'>{props.title}</p>
+    <p class='text-lg font-medium text-gray-700'>{props.title}</p>
     <Show when={props.detail}>
-      <p class='break-all text-xs text-gray-400'>{props.detail}</p>
+      <p class='break-all text-gray-400'>{props.detail}</p>
     </Show>
     {props.children}
   </div>
@@ -330,13 +330,34 @@ const Comp: Component<{ hidden?: boolean, onShowExplorer?: () => void }> = (prop
     if (kind === 'unsupported') {
       return (
         <Notice title='该文件暂不支持预览' detail={`${currentFile().name} · ${currentFile().size.show()}`}>
-          <a
-            class='text-xs text-gray-500 underline hover:text-green-600'
-            href={requests.constructDownloadURL(currentFile())}
-            download={currentFile().name}
+          {/* lnk 等链接下载无意义，改为跳转到解析目标。 */}
+          <Show
+            when={isLocalLink()}
+            fallback={
+              <a
+                class='text-gray-500 underline hover:text-green-600'
+                href={requests.constructDownloadURL(currentFile())}
+                download={currentFile().name}
+              >
+                下载文件
+              </a>
+            }
           >
-            下载文件
-          </a>
+            {/* 与“下载文件”共用 <a> 样式；目标未就绪时仅禁用点击，不改变链接外观。 */}
+            <a
+              class='text-gray-500 underline hover:text-green-600'
+              classList={{ 'pointer-events-none opacity-50 no-underline': linkTarget.loading || !linkTarget() }}
+              href='#'
+              aria-disabled={linkTarget.loading || !linkTarget()}
+              title={linkTarget()?.path ?? (linkTarget.loading ? '正在解析链接目标' : '链接目标不可用')}
+              onClick={(event) => {
+                event.preventDefault()
+                jumpToLinkTarget()
+              }}
+            >
+              {linkTarget.loading ? '解析中…' : linkTarget() ? '跳转到目标目录' : '链接不可用'}
+            </a>
+          </Show>
         </Notice>
       )
     }
