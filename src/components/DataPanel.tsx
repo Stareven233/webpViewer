@@ -236,6 +236,13 @@ const Comp: Component<{ hidden?: boolean, onShowExplorer?: () => void }> = (prop
     () => previewKind() !== 'unsupported' && !isStreamKind() ? [currentFile(), retryTick()] as const : undefined,
     ([file]) => fetchBlob(file),
   )
+  // 切到不支持预览/流式类型时不会再有下一次 fetchBlob 来中止旧请求，必须在此主动中止，
+  // 否则旧大文件请求完成后会把旧 Blob 写回资源，污染下一个文件的预览。
+  createEffect(() => {
+    if (previewKind() === 'unsupported' || isStreamKind()) {
+      loadController?.abort()
+    }
+  })
   onCleanup(() => loadController?.abort())
 
   // 播放失败时展示降级提示；切换文件时在下方 effect 中重置。
@@ -260,6 +267,11 @@ const Comp: Component<{ hidden?: boolean, onShowExplorer?: () => void }> = (prop
     if (kind !== 'text' && kind !== 'html') {
       return undefined
     }
+    // blob 正在刷新时 safeBlob() 仍是上一个文件的旧值，必须先返回 undefined，
+    // 否则会用旧大文本重复解码，阻塞主线程并卡住新文件的预览。
+    if (blob.loading) {
+      return undefined
+    }
     const content = safeBlob()
     // 超限的 warn 文本由 renderPreview 统一提示，无需再解码。
     if (!content || isWarnBlob(content)) {
@@ -269,6 +281,11 @@ const Comp: Component<{ hidden?: boolean, onShowExplorer?: () => void }> = (prop
   }
   const decodeText = async (content: Blob) => {
     await nextPaint()
+    // 让出一帧期间若已切走（或进入刷新），旧文本结果会被新解码覆盖，直接跳过昂贵解码。
+    const kind = previewKind()
+    if (kind !== 'text' && kind !== 'html' || blob.loading || safeBlob() !== content) {
+      return ''
+    }
     return await content.text()
   }
   const [blobText] = createResource(textSource, decodeText)
