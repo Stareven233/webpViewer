@@ -43,7 +43,7 @@ const App: Component = () => {
   return (
     <main
       ref={mainPanel}
-      class='flex flex-row h-full mt-2 selection:bg-orange-300'
+      class='flex flex-row h-full mt-2 selection:bg-[#ffe49ccc] selection:text-black'
       onkeydown={(e) => handleKeyEvent(e)}
       tabindex={1}
     >
